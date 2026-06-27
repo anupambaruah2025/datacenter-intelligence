@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>DataCenter Intelligence — Explore the Complete Ecosystem</title>
+  <meta name="description" content="An immersive market-intelligence platform for the global data center industry. Explore the full lifecycle and knowledge graph from facility to raw material." />
+
+  <!-- Social preview (LinkedIn / X / Facebook). After deploying, the share URL is enough;
+       drop a 1200x630 screenshot at assets/og-cover.png to show an image card. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="DataCenter Intelligence — Explore the Complete Ecosystem" />
+  <meta property="og:description" content="An interactive knowledge graph of the global data center industry: 11 disciplines, 140+ companies, full project lifecycle. Click any node to explore." />
+  <meta property="og:image" content="assets/og-cover.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="DataCenter Intelligence — Explore the Complete Ecosystem" />
+  <meta name="twitter:description" content="Interactive knowledge graph of the global data center industry. 11 disciplines, 140+ companies, full lifecycle." />
+  <meta name="twitter:image" content="assets/og-cover.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body>
+  <div class="grid-bg"></div>
+  <div class="noise"></div>
+
+  <div id="app">
+    <!-- ============ TOP BAR ============ -->
+    <header class="topbar">
+      <div class="brand" title="Back to overview">
+        <div class="mark"></div>
+        <div class="name">DataCenter Intelligence<small>Market &amp; Ecosystem Platform</small></div>
+      </div>
+
+      <nav class="nav-tabs">
+        <button data-scene="hero" class="active">Lifecycle</button>
+        <button data-scene="graph">Knowledge Graph</button>
+      </nav>
+
+      <div class="spacer"></div>
+
+      <div class="searchbox">
+        <span class="ico">⌕</span>
+        <input id="search" type="text" placeholder="Search suppliers, systems, disciplines…" autocomplete="off" spellcheck="false" />
+        <kbd>/</kbd>
+        <div id="results" class="results"></div>
+      </div>
+
+      <button id="enter-btn" class="btn">Explore ↗</button>
+    </header>
+
+    <!-- ============ HERO SCENE ============ -->
+    <section id="scene-hero" class="scene">
+      <div class="hero-head">
+        <span class="hero-eyebrow"><span class="pulse"></span>Live Market Intelligence · 2026</span>
+        <h1>Explore the Complete<br />Data Center Ecosystem</h1>
+        <p>Navigate every phase of a data center — from feasibility to decommissioning — as one living, connected knowledge graph. Hover a stage to preview. Click to dive in.</p>
+        <div class="hero-cta">
+          <button class="btn" id="enter-btn2" onclick="document.getElementById('enter-btn').click()">Enter the Knowledge Graph ↗</button>
+          <button class="btn ghost" onclick="document.querySelector('.nav-tabs [data-scene=graph]').click()">View Disciplines</button>
+        </div>
+      </div>
+
+      <div class="flow-wrap">
+        <svg id="flow-svg" preserveAspectRatio="none"></svg>
+        <div class="flow-nodes"></div>
+        <div class="flow-tip"></div>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat"><div class="v" data-value="418" data-prefix="$" data-suffix="B">$0</div><div class="k">Global Market Size</div></div>
+        <div class="stat"><div class="v" data-value="11.2" data-suffix="%" data-dec="1">0</div><div class="k">Industry CAGR</div></div>
+        <div class="stat"><div class="v" data-value="11" data-suffix="">0</div><div class="k">Engineering Disciplines</div></div>
+        <div class="stat"><div class="v" data-value="1.25" data-prefix="&lt;" data-dec="2">0</div><div class="k">Target PUE</div></div>
+        <div class="stat"><div class="v" data-value="146" data-suffix="" >0</div><div class="k">Mapped Companies</div></div>
+      </div>
+    </section>
+
+    <!-- ============ GRAPH SCENE ============ -->
+    <section id="scene-graph" class="scene hidden">
+      <canvas id="graph-canvas"></canvas>
+
+      <div id="breadcrumb" class="breadcrumb"></div>
+
+      <button id="reset" class="btn ghost reset-btn">⟲ Reset to Data Center</button>
+
+      <!-- detail panel -->
+      <aside id="detail" class="detail">
+        <div class="close">✕</div>
+        <div class="head">
+          <div id="d-logo"></div>
+          <div class="htext">
+            <div id="d-kind" class="kind">Core</div>
+            <h2 id="d-title">Data Center</h2>
+            <a id="d-web" class="weblink" href="#" target="_blank" rel="noopener" style="display:none"></a>
+          </div>
+        </div>
+        <div id="d-desc" class="desc"></div>
+        <div id="d-metrics" class="metrics"></div>
+        <button id="d-profile" class="btn" style="display:none;width:100%;justify-content:center;margin-bottom:16px">View full company profile →</button>
+        <div id="d-children-label" class="section-label">Connected nodes</div>
+        <div id="d-children" class="children"></div>
+      </aside>
+
+      <!-- legend -->
+      <div class="legend">
+        <div class="title">Families</div>
+        <div class="li"><span class="d" style="color:#38bdf8"></span>Electrical</div>
+        <div class="li"><span class="d" style="color:#22d3ee"></span>Mechanical / Cooling</div>
+        <div class="li"><span class="d" style="color:#a855f7"></span>ICT / Networking</div>
+        <div class="li"><span class="d" style="color:#f59e0b"></span>Civil / Legal</div>
+        <div class="li"><span class="d" style="color:#34d399"></span>Automation / Sustain</div>
+        <div class="li"><span class="d" style="color:#c084fc"></span>Supply Chain</div>
+      </div>
+
+      <!-- hints -->
+      <div class="hintbar">
+        <span><b>Click</b> a node to expand</span>
+        <span><b>Double-click</b> to dive</span>
+        <span><span class="k">Drag</span> to pan</span>
+        <span><span class="k">Scroll</span> to zoom</span>
+        <span><span class="k">/</span> to search</span>
+      </div>
+    </section>
+
+    <!-- ============ COMPANY PROFILE OVERLAY ============ -->
+    <div id="profile" class="profile-overlay"></div>
+  </div>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/enrich.js"></script>
+  <script src="assets/js/graph.js"></script>
+  <script src="assets/js/hero.js"></script>
+  <script src="assets/js/profile.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# OS / editor cruft
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+*.log
+
+# Local-only deploy artifact
+../DataCenterIntelligence-web.zip
