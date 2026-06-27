@@ -2,7 +2,7 @@
 
 An immersive, exploration-based **market-intelligence platform for the global data center industry** — built as a dependency-free web app (no build step, no framework runtime).
 
-🔗 **Live demo:** _add your GitHub Pages / Netlify URL here_
+🔗 **Live demo:** https://anupambaruah2025.github.io/datacenter-intelligence/
 
 ## What it does
 - **Cinematic lifecycle hero** — the full project journey from feasibility → operations → decommissioning, animated.
