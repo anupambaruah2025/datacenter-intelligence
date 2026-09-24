@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Anupam Baruah — LinkedIn banner variants</title>
+<style>
+  @font-face{
+    font-family:'Inter';
+    font-style:normal;
+    font-weight:100 900;
+    font-display:block;
+    src:url('fonts/Inter.woff2') format('woff2');
+  }
+
+  :root{
+    --ink:#05080F;
+    --navy:#070C17;
+    --slate:#94A3B8;
+    --mute:#64748B;
+    --cyan:#22D3EE;
+    --sky:#38BDF8;
+    --blue:#2563EB;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#111827}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column;align-items:center;gap:28px;padding:28px;
+  }
+
+  /* LinkedIn personal cover: 1584 x 396 (4:1) */
+  .banner{
+    position:relative;width:1584px;height:396px;overflow:hidden;
+    background:var(--navy);color:#F8FAFC;isolation:isolate;
+  }
+
+  /* ---------- shared decorative layers ---------- */
+  .grid{
+    position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(56,189,248,.055) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(56,189,248,.055) 1px,transparent 1px);
+    background-size:44px 44px;
+    -webkit-mask-image:radial-gradient(120% 140% at 12% 50%,#000 0%,rgba(0,0,0,.35) 55%,transparent 85%);
+            mask-image:radial-gradient(120% 140% at 12% 50%,#000 0%,rgba(0,0,0,.35) 55%,transparent 85%);
+  }
+  .glow-a{position:absolute;width:900px;height:900px;border-radius:50%;
+    background:radial-gradient(circle,rgba(34,211,238,.28) 0%,rgba(37,99,235,.14) 38%,transparent 68%);
+    right:-140px;top:-320px;filter:blur(6px)}
+  .glow-b{position:absolute;width:620px;height:620px;border-radius:50%;
+    background:radial-gradient(circle,rgba(37,99,235,.20) 0%,transparent 66%);
+    left:-220px;bottom:-320px}
+  .topline{position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,var(--cyan) 0%,var(--sky) 22%,var(--blue) 46%,transparent 78%)}
+
+  /* ---------- shared type ---------- */
+  .eyebrow{display:flex;align-items:center;gap:10px;
+    font-size:12px;font-weight:700;letter-spacing:.24em;color:#7DD3FC;text-transform:uppercase}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);
+    box-shadow:0 0 0 4px rgba(34,211,238,.18),0 0 14px rgba(34,211,238,.9)}
+  h1{font-size:62px;line-height:1.02;font-weight:800;letter-spacing:-.028em;color:#FFF;white-space:nowrap}
+  .chip{display:inline-block;vertical-align:middle;margin-left:16px;transform:translateY(-14px);
+    font-size:13px;font-weight:800;letter-spacing:.14em;color:#7DD3FC;
+    border:1px solid rgba(56,189,248,.45);border-radius:5px;padding:5px 11px;
+    background:rgba(56,189,248,.08)}
+  .role{font-size:21px;font-weight:500;letter-spacing:-.005em;color:#A5B4C6;white-space:nowrap}
+  .role b{color:#E2E8F0;font-weight:600}
+
+  .rule{height:1px;background:linear-gradient(90deg,rgba(56,189,248,.55),rgba(56,189,248,.12) 55%,transparent)}
+
+  .stats{display:flex;align-items:flex-start}
+  .stat{padding-right:36px;margin-right:36px;border-right:1px solid rgba(148,163,184,.22)}
+  .stat:last-child{border-right:0;padding-right:0;margin-right:0}
+  .v{font-size:30px;font-weight:800;letter-spacing:-.02em;color:#FFF;line-height:1}
+  .v span{font-size:16px;font-weight:700;color:var(--cyan);margin-left:5px;letter-spacing:.02em}
+  .k{margin-top:8px;font-size:10.5px;font-weight:600;letter-spacing:.16em;color:#7C8CA1;text-transform:uppercase}
+
+  /* ---------- photo treatments ---------- */
+  .shot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    filter:contrast(1.06) saturate(.92) brightness(.97)}
+
+  /* =========================================================
+     VARIANT A — Command deck (feathered full-bleed portrait)
+     ========================================================= */
+  .a .portrait{position:absolute;top:0;right:0;width:660px;height:396px;
+    -webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.14) 20%,rgba(0,0,0,.80) 46%,#000 64%);
+            mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.14) 20%,rgba(0,0,0,.80) 46%,#000 64%)}
+  .a .portrait .shot{object-position:50% 11%}
+  .a .portrait::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(90deg,rgba(7,12,23,.60),transparent 46%),
+               linear-gradient(270deg,rgba(7,12,23,.72),rgba(7,12,23,.18) 22%,transparent 40%),
+               linear-gradient(0deg,rgba(7,12,23,.62),transparent 40%),
+               linear-gradient(180deg,rgba(7,12,23,.35),transparent 26%)}
+  .a .content{position:absolute;left:76px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:0;
+    padding-bottom:58px}
+  .a h1{margin-top:18px}
+  .a .role{margin-top:12px}
+  .a .rule{width:520px;margin:26px 0 22px}
+
+  /* =========================================================
+     VARIANT B — Split panel (structured, corporate)
+     ========================================================= */
+  .b{background:#060A13}
+  .b .panel{position:absolute;top:0;right:0;width:520px;height:100%;overflow:hidden}
+  .b .panel .shot{object-position:50% 12%;filter:contrast(1.08) saturate(.88) brightness(.94)}
+  .b .panel::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(90deg,rgba(6,10,19,.94) 0%,rgba(6,10,19,.18) 26%,transparent 52%),
+               linear-gradient(270deg,rgba(6,10,19,.70),rgba(6,10,19,.15) 20%,transparent 38%),
+               linear-gradient(0deg,rgba(6,10,19,.55),transparent 34%),
+               linear-gradient(200deg,rgba(34,211,238,.13),transparent 55%)}
+  .b .seam{position:absolute;top:0;bottom:0;right:520px;width:1px;
+    background:linear-gradient(180deg,transparent,rgba(56,189,248,.75),transparent)}
+  .b .content{position:absolute;left:76px;top:0;bottom:0;right:600px;
+    display:flex;flex-direction:column;justify-content:center;padding-bottom:52px}
+  .b h1{font-size:56px;margin-top:16px}
+  .b .role{font-size:19px;margin-top:11px}
+  .b .cards{display:flex;gap:12px;margin-top:28px}
+  .b .card{flex:1;border:1px solid rgba(148,163,184,.20);border-radius:11px;
+    background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.015));
+    padding:13px 15px 14px;position:relative;overflow:hidden}
+  .b .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;
+    background:linear-gradient(180deg,var(--cyan),var(--blue))}
+  .b .card .v{font-size:26px}
+  .b .card .k{margin-top:6px;font-size:9.5px;letter-spacing:.14em}
+
+  /* =========================================================
+     VARIANT C — Editorial minimal (framed portrait + rule)
+     ========================================================= */
+  .c{background:#04070D}
+  .c .arcs{position:absolute;right:150px;top:50%;transform:translateY(-50%);width:760px;height:760px;
+    border-radius:50%;border:1px solid rgba(56,189,248,.22);
+    box-shadow:0 0 0 1px rgba(56,189,248,.05) inset}
+  .c .arcs::after{content:"";position:absolute;inset:120px;border-radius:50%;
+    border:1px solid rgba(56,189,248,.16)}
+  .c .frame{position:absolute;right:104px;top:50%;transform:translateY(-50%);
+    width:300px;height:300px;border-radius:24px;overflow:hidden;
+    box-shadow:0 0 0 1px rgba(56,189,248,.45),0 0 0 9px rgba(56,189,248,.07),
+               0 30px 70px rgba(2,6,16,.75)}
+  .c .frame .shot{position:absolute;inset:auto;width:520px;height:650px;
+    left:-115px;top:-23px;object-fit:cover;filter:contrast(1.05) saturate(.95)}
+  .c .frame::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg,transparent 55%,rgba(4,7,13,.55))}
+  .c .content{position:absolute;left:72px;top:0;bottom:0;right:470px;
+    display:flex;flex-direction:column;justify-content:center;
+    padding-left:30px;padding-bottom:50px}
+  .c .bar{position:absolute;left:0;top:96px;bottom:96px;width:3px;
+    background:linear-gradient(180deg,var(--cyan),var(--blue));border-radius:2px}
+  .c h1{font-size:64px;margin-top:18px}
+  .c .role{margin-top:13px;font-size:20px}
+  .c .creds{display:flex;align-items:center;gap:14px;margin-top:30px;flex-wrap:nowrap}
+  .c .cred{font-size:12.5px;font-weight:700;letter-spacing:.13em;color:#CBD5E1;text-transform:uppercase;white-space:nowrap}
+  .c .cred i{font-style:normal;color:var(--cyan);font-weight:800}
+  .c .sep{width:5px;height:5px;border-radius:50%;background:rgba(56,189,248,.55);flex:none}
+
+  /* LinkedIn safe-zone guides — review only, never exported */
+  .guide{display:none}
+  body.guides .guide{display:block;position:absolute;inset:0;z-index:99}
+  body.guides .guide .avatar{position:absolute;left:34px;top:295px;width:213px;height:213px;
+    border-radius:50%;background:rgba(239,68,68,.35);border:2px solid #ef4444}
+
+  /* label under each banner (not exported) */
+  .label{width:1584px;color:#9CA3AF;font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="label">Variant A — Command deck</div>
+<section class="banner a" id="v-a">
+  <div class="guide"><div class="avatar"></div></div>
+  <div class="glow-b"></div>
+  <div class="portrait"><img class="shot" src="photo.webp" alt="" /></div>
+  <div class="glow-a"></div>
+  <div class="grid"></div>
+  <div class="topline"></div>
+
+  <div class="content">
+    <div class="eyebrow"><span class="dot"></span>Bangkok · Southeast Asia</div>
+    <h1>Anupam Baruah<span class="chip">PMP</span></h1>
+    <div class="role">Contract Manager — <b>Hyperscale Data Centers</b>, EPC &amp; Renewables</div>
+    <div class="rule"></div>
+    <div class="stats">
+      <div class="stat"><div class="v">160<span>MW</span></div><div class="k">Hyperscale Data Center</div></div>
+      <div class="stat"><div class="v">680<span>MW</span></div><div class="k">Solar Portfolio</div></div>
+      <div class="stat"><div class="v">20<span>YRS</span></div><div class="k">EPC &amp; Contracts</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="label">Variant B — Split panel</div>
+<section class="banner b" id="v-b">
+  <div class="guide"><div class="avatar"></div></div>
+  <div class="glow-b"></div>
+  <div class="panel"><img class="shot" src="photo.webp" alt="" /></div>
+  <div class="seam"></div>
+  <div class="grid"></div>
+  <div class="topline"></div>
+
+  <div class="content">
+    <div class="eyebrow"><span class="dot"></span>Bangkok · Southeast Asia</div>
+    <h1>Anupam Baruah<span class="chip">PMP</span></h1>
+    <div class="role">Contract Manager — <b>Hyperscale Data Centers</b>, EPC &amp; Renewables</div>
+    <div class="cards">
+      <div class="card"><div class="v">160<span>MW</span></div><div class="k">Hyperscale DC</div></div>
+      <div class="card"><div class="v">680<span>MW</span></div><div class="k">Solar</div></div>
+      <div class="card"><div class="v">20<span>YRS</span></div><div class="k">EPC &amp; Contracts</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="label">Variant C — Editorial minimal</div>
+<section class="banner c" id="v-c">
+  <div class="guide"><div class="avatar"></div></div>
+  <div class="glow-b"></div>
+  <div class="arcs"></div>
+  <div class="glow-a"></div>
+  <div class="grid"></div>
+  <div class="frame"><img class="shot" src="photo.webp" alt="" /></div>
+  <div class="topline"></div>
+
+  <div class="content">
+    <div class="bar"></div>
+    <div class="eyebrow"><span class="dot"></span>Bangkok · Southeast Asia</div>
+    <h1>Anupam Baruah<span class="chip">PMP</span></h1>
+    <div class="role">Contract Manager — <b>Hyperscale Data Centers</b>, EPC &amp; Renewables</div>
+    <div class="creds">
+      <span class="cred"><i>160&nbsp;MW</i> Hyperscale DC</span><span class="sep"></span>
+      <span class="cred"><i>680&nbsp;MW</i> Solar</span><span class="sep"></span>
+      <span class="cred"><i>20&nbsp;yrs</i> EPC &amp; Contracts</span>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

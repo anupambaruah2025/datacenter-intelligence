@@ -24,6 +24,7 @@ assets/
   js/hero.js            lifecycle hero animation
   js/profile.js         company profile overlay
   js/app.js             search, breadcrumb, scene orchestration
+assets/brand/           LinkedIn cover banner, built as code (see its README)
 ```
 
 ## Run locally
