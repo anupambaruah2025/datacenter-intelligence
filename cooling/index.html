@@ -508,6 +508,15 @@ function drawOutro(t) {
   ctx.fillText('From precision cooling to liquid cooling — the thermal backbone of AI.', 540, 686);
   ctx.font = '700 15px Inter'; ctx.letterSpacing = '5px'; ctx.fillStyle = `rgba(127,211,255,${k4 * .9})`;
   ctx.fillText('THE DATA CENTER COOLING ECOSYSTEM', 544, 760);
+  // author credit
+  const k5 = easeOut(prog(t, 28.4, 29.3));
+  if (k5 > 0) {
+    ctx.letterSpacing = '0px';
+    ctx.fillStyle = `rgba(56,189,248,${k5 * .6})`; ctx.fillRect(540 - 24 * k5, 826, 48 * k5, 2);
+    ctx.font = '700 34px Inter'; ctx.fillStyle = `rgba(242,248,255,${k5})`;
+    ctx.shadowColor = 'rgba(56,189,248,.45)'; ctx.shadowBlur = 24;
+    ctx.fillText('Anupam Baruah', 540, 880 - (1 - k5) * 14);
+  }
   ctx.restore();
 }
 
