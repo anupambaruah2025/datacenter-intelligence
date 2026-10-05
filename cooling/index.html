@@ -43,9 +43,12 @@
    the synthesized soundtrack on any (Offline)AudioContext. The same code
    drives live playback and the frame-accurate video export.
    =================================================================== */
-const W = 1080, H = 1080, DURATION = 33;
+// LEAD: the cover card holds for the first frames so the video (and its
+// auto-thumbnail) opens on a designed frame instead of black.
+const W = 1080, H = 1080, LEAD = 1.6, DURATION = 33 + LEAD, COVER_T = 25.0;
+let COVER = false;
 const cv = document.getElementById('c');
-const ctx = cv.getContext('2d');
+let ctx = cv.getContext('2d');
 
 const CARDS = [
   ['vertiv',     'Thermal Management Systems'],
@@ -464,6 +467,11 @@ function drawCounter(t) {
   if (a <= 0) return;
   const n = Math.min(12, Math.max(0, Math.floor((t - CARD_T0) / CARD_STEP) + 1));
   ctx.save(); ctx.globalAlpha = a; ctx.textAlign = 'right';
+  if (COVER) {
+    ctx.font = '700 22px Inter'; ctx.fillStyle = '#f2f8ff'; ctx.fillText('Anupam Baruah', 1020, 84);
+    ctx.font = '600 12px Inter'; ctx.letterSpacing = '3px'; ctx.fillStyle = '#7fd3ff'; ctx.fillText('12 COOLING LEADERS', 1020 + 3, 108);
+    ctx.restore(); return;
+  }
   ctx.font = '800 40px Inter'; ctx.fillStyle = '#f2f8ff'; ctx.fillText(String(n).padStart(2, '0'), 1020, 92);
   ctx.font = '600 13px Inter'; ctx.letterSpacing = '3px'; ctx.fillStyle = '#7fd3ff'; ctx.fillText('LEADERS', 1020, 114);
   ctx.restore();
@@ -549,7 +557,7 @@ function shake(t) {
   return [Math.sin(t * 91) * s, Math.cos(t * 77) * s];
 }
 
-function render(t) {
+function renderMain(t) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.letterSpacing = '0px'; ctx.textAlign = 'left';
   drawBackground(t);
@@ -567,6 +575,26 @@ function render(t) {
   drawOutro(t);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   drawPost(t);
+}
+
+// Cover = the completed grid with the author credit, cached once.
+let coverCv = null;
+function getCover() {
+  if (coverCv) return coverCv;
+  coverCv = document.createElement('canvas'); coverCv.width = W; coverCv.height = H;
+  const main = ctx; ctx = coverCv.getContext('2d'); COVER = true;
+  try { renderMain(COVER_T); } finally { ctx = main; COVER = false; }
+  return coverCv;
+}
+function render(t) {
+  if (t >= LEAD) return renderMain(t - LEAD);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#01060f'; ctx.fillRect(0, 0, W, H);
+  const k = easeInOut(prog(t, 1.0, LEAD));
+  ctx.globalAlpha = 1 - k;
+  const z = 1 + k * .04; ctx.translate(540, 540); ctx.scale(z, z); ctx.translate(-540, -540);
+  ctx.drawImage(getCover(), 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
 }
 
 /* ===================================================================
@@ -663,6 +691,7 @@ function buildScore(ac, dest, T) {
   };
 
   // --- arrangement ---
+  whoosh(T - .7, .8, 4000, 400, .35);     // cover dissolves into the intro
   whoosh(T + .4, 2.6, 200, 5000, .8);      // riser into first slam
   impact(T + 3.0); impact(T + 4.5, .85);
   bell(T + 1.0, 81, .6); bell(T + 5.45, 88, .9);  // kicker + glint
@@ -699,7 +728,7 @@ function buildScore(ac, dest, T) {
 // WAV export used by the video renderer
 async function renderAudioWav() {
   const sr = 48000, oac = new OfflineAudioContext(2, sr * DURATION, sr);
-  buildScore(oac, oac.destination, 0);
+  buildScore(oac, oac.destination, LEAD);
   const buf = await oac.startRendering();
   const n = buf.length, L = buf.getChannelData(0), Rr = buf.getChannelData(1);
   const ab = new ArrayBuffer(44 + n * 4), v = new DataView(ab);
@@ -721,7 +750,7 @@ function play() {
   ac = new (window.AudioContext || window.webkitAudioContext)();
   outGain = ac.createGain(); outGain.gain.value = muted ? 0 : 1; outGain.connect(ac.destination);
   start = ac.currentTime + .15;
-  buildScore(ac, outGain, start);
+  buildScore(ac, outGain, start + LEAD);
   overlay.classList.add('hidden'); playing = true;
   cancelAnimationFrame(rafId);
   const loop = () => {
@@ -737,7 +766,7 @@ document.getElementById('replay').onclick = play;
 document.getElementById('mute').onclick = () => { muted = !muted; if (outGain) outGain.gain.value = muted ? 0 : 1; document.getElementById('mute').textContent = muted ? '🔇' : '🔊'; };
 addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'r') play(); if (e.key === 'm') document.getElementById('mute').click(); });
 
-window.__ready = loadAssets().then(() => { render(5.6); hint.textContent = '33 s · sound on for the full experience'; });
+window.__ready = loadAssets().then(() => { render(0); hint.textContent = `${Math.round(DURATION)} s · sound on for the full experience`; });
 window.__render = render; window.__audio = renderAudioWav; window.__duration = DURATION;
 </script>
 </body>

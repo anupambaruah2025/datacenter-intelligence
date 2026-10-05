@@ -1,5 +1,6 @@
 // Frame-accurate exporter: serve the repo root on :8123, then
 //   node cooling/render.js stills 2,8.4,21   -> JPEG stills
+//   node cooling/render.js cover             -> out/cover.png
 //   node cooling/render.js video             -> out/cooler-compute.mp4 (needs ffmpeg + playwright)
 const { chromium } = require('playwright');
 const { spawn } = require('child_process');
@@ -14,7 +15,10 @@ const mode = process.argv[2] || 'stills';
   await p.evaluate(() => window.__ready);
   console.log('fonts:', await p.evaluate(() => document.fonts.check('900 50px Inter')));
   const grab = async t => { const d = await p.evaluate(t => { __render(t); return document.getElementById('c').toDataURL('image/jpeg', .94); }, t); return Buffer.from(d.split(',')[1], 'base64'); };
-  if (mode === 'stills') {
+  if (mode === 'cover') {
+    const d = await p.evaluate(() => { __render(0); return document.getElementById('c').toDataURL('image/png'); });
+    fs.writeFileSync(`${OUT}/cover.png`, Buffer.from(d.split(',')[1], 'base64'));
+  } else if (mode === 'stills') {
     for (const t of (process.argv[3] || '2,3.2,5.9,7.6,8.4,9.6,13.9,20.5,21.5,24,27,29').split(',').map(Number)) fs.writeFileSync(`${OUT}/s_${t}.jpg`, await grab(t));
   } else {
     const wav = await p.evaluate(() => window.__audio());
