@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cooler Compute</title>
+<meta name="description" content="The data center cooling ecosystem — an animated motion piece with synthesized score." />
+<style>
+  /* Inter (SIL OFL 1.1), self-hosted latin subset so canvas text never falls back */
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400 900; font-display: block; src: url(fonts/inter-latin.woff2) format('woff2'); }
+  :root { --bg: #01060f; --fg: #e8f3ff; --accent: #38bdf8; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: Inter, system-ui, sans-serif; overflow: hidden; }
+  .stage { position: fixed; inset: 0; display: grid; place-items: center; }
+  canvas { width: min(100vw, 100vh); height: min(100vw, 100vh); display: block; }
+  .overlay { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 50%, rgba(2,12,28,.55), rgba(1,6,15,.92)); transition: opacity .5s; z-index: 2; }
+  .overlay.hidden { opacity: 0; pointer-events: none; }
+  .play { display: flex; align-items: center; gap: 14px; padding: 16px 26px; border-radius: 999px; border: 1px solid rgba(56,189,248,.5); background: rgba(8,30,56,.7); color: var(--fg); font: 600 16px Inter, sans-serif; letter-spacing: .04em; cursor: pointer; box-shadow: 0 0 40px rgba(56,189,248,.25); backdrop-filter: blur(8px); }
+  .play:hover { background: rgba(14,52,92,.85); }
+  .play svg { width: 18px; height: 18px; fill: var(--accent); }
+  .hint { margin-top: 14px; font-size: 13px; color: #8aa6c4; text-align: center; }
+  .controls { position: fixed; right: 16px; bottom: 16px; display: flex; gap: 8px; z-index: 3; opacity: .55; transition: opacity .2s; }
+  .controls:hover { opacity: 1; }
+  .controls button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18); background: rgba(6,20,40,.7); color: #cfe6ff; cursor: pointer; font-size: 16px; }
+</style>
+</head>
+<body>
+<div class="stage"><canvas id="c" width="1080" height="1080"></canvas></div>
+<div class="overlay" id="overlay">
+  <div>
+    <button class="play" id="playBtn"><svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>Play with sound</button>
+    <div class="hint" id="hint">Loading…</div>
+  </div>
+</div>
+<div class="controls">
+  <button id="replay" title="Replay (R)">↺</button>
+  <button id="mute" title="Mute (M)">🔊</button>
+</div>
+
+<script>
+/* ===================================================================
+   COOLER COMPUTE — deterministic motion piece.
+   render(t) draws the frame for time t (seconds); buildScore() schedules
+   the synthesized soundtrack on any (Offline)AudioContext. The same code
+   drives live playback and the frame-accurate video export.
+   =================================================================== */
+// LEAD: the cover card holds for the first frames so the video (and its
+// auto-thumbnail) opens on a designed frame instead of black.
+const W = 1080, H = 1080, LEAD = 1.6, DURATION = 33 + LEAD, COVER_T = 25.0;
+let COVER = false;
+const cv = document.getElementById('c');
+let ctx = cv.getContext('2d');
+
+const CARDS = [
+  ['vertiv',     'Thermal Management Systems'],
+  ['schneider',  'Cooling Units & Chillers'],
+  ['stulz',      'Precision Cooling Solutions'],
+  ['trane',      'Chillers & Cooling Systems'],
+  ['carrier',    'HVAC & Cooling Solutions'],
+  ['rittal',     'Liquid Cooling Systems'],
+  ['eaton',      'Cooling & Power Management'],
+  ['abb',        'Thermal Control Solutions'],
+  ['mitsubishi', 'Cooling Systems & Chillers'],
+  ['siemens',    'Cooling & Environmental Systems'],
+  ['jci',        'HVAC & Chilled Water Systems'],
+  ['danfoss',    'Expertise in Cooling & Thermal Solutions'],
+];
+const CARD_T0 = 8.0, CARD_STEP = 1.0;
+const CW = 228, CH = 236, GAP = 16, GX = 60, GY = 300;
+
+// ---------- utils ----------
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const easeOut = k => 1 - Math.pow(1 - k, 3);
+const easeInOut = k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const easeBack = k => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); };
+const easeExpo = k => k === 1 ? 1 : 1 - Math.pow(2, -10 * k);
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const mod = (a, n) => ((a % n) + n) % n;
+
+// ---------- assets ----------
+const IMG = {};
+function loadImg(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
+async function loadAssets() {
+  const jobs = [];
+  for (const [k] of CARDS) {
+    jobs.push(loadImg(`img/${k}-logo.jpg`).then(i => IMG[k + 'L'] = i));
+    jobs.push(loadImg(`img/${k}-unit.jpg`).then(i => IMG[k + 'U'] = i));
+  }
+  await Promise.all(jobs);
+  try { await Promise.all(['900 80px Inter', '800 80px Inter', '600 20px Inter', '500 20px Inter'].map(f => document.fonts.load(f))); } catch (e) {}
+  buildGrain();
+}
+
+// ---------- precomputed scene data ----------
+const R = rng(7);
+const PARTICLES = Array.from({ length: 180 }, () => ({ x: R() * W, y: R() * H, z: .3 + R() * .7, vx: 8 + R() * 30, vy: -4 - R() * 10, ph: R() * 6.28 }));
+const STREAKS = Array.from({ length: 34 }, () => ({ y: R() * H, v: 260 + R() * 520, len: 120 + R() * 320, ph: R() * 3000, a: .04 + R() * .12 }));
+const RACK_LEDS = Array.from({ length: 64 }, () => Array.from({ length: 9 }, () => ({ y: R(), on: R() > .35, c: R() > .8 ? 1 : 0, f: R() * 6.28 })));
+let grain;
+function buildGrain() {
+  grain = document.createElement('canvas'); grain.width = grain.height = 256;
+  const g = grain.getContext('2d'), d = g.createImageData(256, 256), r = rng(99);
+  for (let i = 0; i < d.data.length; i += 4) { const v = r() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+  g.putImageData(d, 0, 0);
+}
+function slot(i) { const c = i % 4, r = Math.floor(i / 4); return { x: GX + c * (CW + GAP), y: GY + r * (CH + GAP) }; }
+
+// ---------- background ----------
+function drawBackground(t) {
+  const g = ctx.createRadialGradient(540, 520, 40, 540, 540, 820);
+  g.addColorStop(0, '#0b2547'); g.addColorStop(.55, '#05142b'); g.addColorStop(1, '#01060f');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+function drawFloorGrid(t, a) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha = a;
+  const vy = 300, vx = 540;
+  ctx.strokeStyle = 'rgba(56,189,248,.10)'; ctx.lineWidth = 1;
+  for (let i = -14; i <= 14; i++) { ctx.beginPath(); ctx.moveTo(vx, vy); ctx.lineTo(vx + i * 160, H + 40); ctx.stroke(); }
+  for (let k = 0; k < 14; k++) {
+    const z = mod(k - t * .6, 14) + .6, y = vy + 900 / z;
+    if (y > H) continue;
+    ctx.globalAlpha = a * clamp((y - vy) / 500);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// one-point-perspective data hall that the camera dollies through
+function drawCorridor(t, a) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha = a;
+  const vx = 540, vy = 560, f = 520;
+  const cam = t * 1.15 + t * t * .05;
+  const P = (X, Y, z) => [vx + X * f / z, vy + Y * f / z];
+  const halfW = 1.25, floorY = 1.0, rackTop = -1.05, ceil = -1.5;
+
+  // far glow (cold aisle)
+  let g = ctx.createRadialGradient(vx, vy, 0, vx, vy, 520);
+  g.addColorStop(0, 'rgba(140,220,255,.55)'); g.addColorStop(.18, 'rgba(56,160,248,.22)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // floor tiles
+  ctx.strokeStyle = 'rgba(80,170,255,.16)'; ctx.lineWidth = 1;
+  for (let i = -3; i <= 3; i++) { const [x1, y1] = P(i * .42, floorY, .35), [x2, y2] = P(i * .42, floorY, 40); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+  for (let k = 0; k < 60; k++) {
+    const z = mod(k * .6 - cam, 36) + .35; const [, y] = P(0, floorY, z);
+    ctx.globalAlpha = a * clamp(1.4 - z / 22) * .9;
+    ctx.beginPath(); ctx.moveTo(P(-halfW, floorY, z)[0], y); ctx.lineTo(P(halfW, floorY, z)[0], y); ctx.stroke();
+  }
+  ctx.globalAlpha = a;
+
+  // racks: draw far → near
+  const N = 56, depth = .62, L = N * depth;
+  const items = [];
+  for (let k = 0; k < N; k++) { const z = mod(k * depth - cam, L) + .3; items.push({ k, z }); }
+  items.sort((p, q) => q.z - p.z);
+  for (const { k, z } of items) {
+    const z2 = z + depth * .94; if (z < .32) continue;
+    const fog = clamp(1 - z / 30);
+    for (const side of [-1, 1]) {
+      const X = side * halfW;
+      const [ax, ay] = P(X, rackTop, z), [bx, by] = P(X, rackTop, z2), [cx_, cy_] = P(X, floorY, z2), [dx, dy] = P(X, floorY, z);
+      const lg = ctx.createLinearGradient(ax, ay, ax, dy);
+      lg.addColorStop(0, `rgba(${14 + 20 * fog},${26 + 30 * fog},${44 + 40 * fog},1)`); lg.addColorStop(1, `rgba(6,12,24,1)`);
+      ctx.fillStyle = lg;
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.lineTo(cx_, cy_); ctx.lineTo(dx, dy); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = `rgba(90,170,255,${.10 + .25 * fog})`; ctx.lineWidth = 1; ctx.stroke();
+      // LEDs
+      const leds = RACK_LEDS[(k * 2 + (side > 0 ? 1 : 0)) % RACK_LEDS.length];
+      for (const l of leds) {
+        if (!l.on) continue;
+        const Y = lerp(rackTop + .1, floorY - .12, l.y);
+        const [lx, ly] = P(X, Y, z + depth * .2);
+        const flick = .55 + .45 * Math.sin(t * 9 + l.f * 3);
+        const r = Math.max(.6, 3.2 / z);
+        ctx.fillStyle = l.c ? `rgba(120,255,200,${flick * fog})` : `rgba(90,200,255,${flick * fog})`;
+        ctx.fillRect(lx - r, ly - r * .5, r * 2.4, r);
+      }
+    }
+    // ceiling light strip
+    if (z > 1.2) {
+      for (const lx0 of [-.75, .75]) {
+        const [l1x, l1y] = P(lx0 - .03, ceil, z), [l2x] = P(lx0 + .03, ceil, z), [, l3y] = P(lx0, ceil, z + depth * .7);
+        ctx.fillStyle = `rgba(200,240,255,${.15 + .45 * fog})`;
+        ctx.fillRect(l1x, l1y, Math.max(1, l2x - l1x), Math.max(1, l3y - l1y));
+      }
+    }
+  }
+
+  // rising cold-air mist from perforated tiles
+  for (const p of PARTICLES) {
+    const z = 1 + p.z * 14, X = (p.x / W - .5) * 2.2;
+    const Y = floorY - mod(p.ph + t * .35 * (1.2 - p.z), 1.6);
+    const zz = mod(z - cam * .5, 15) + .4;
+    const [x, y] = P(X, Y, zz);
+    const al = clamp(1 - zz / 14) * clamp((floorY - Y) * 2) * clamp((1.6 - (floorY - Y))) * .45;
+    ctx.fillStyle = `rgba(170,230,255,${al})`;
+    ctx.beginPath(); ctx.arc(x, y, Math.max(.5, 2.2 / zz * 3), 0, 6.283); ctx.fill();
+  }
+  // dark scrim keeps the title legible over the aisle
+  const sg = ctx.createRadialGradient(540, 500, 0, 540, 500, 520);
+  sg.addColorStop(0, 'rgba(1,8,20,.62)'); sg.addColorStop(.6, 'rgba(1,8,20,.35)'); sg.addColorStop(1, 'rgba(1,8,20,0)');
+  ctx.globalAlpha = a * prog(t, .6, 2.2); ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+function drawAirflow(t, a) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const s of STREAKS) {
+    const x = mod(s.ph + t * s.v, W + s.len * 2) - s.len;
+    const y = s.y + Math.sin(t * .8 + s.ph) * 14;
+    const g = ctx.createLinearGradient(x - s.len, 0, x, 0);
+    g.addColorStop(0, 'rgba(56,189,248,0)'); g.addColorStop(1, `rgba(150,225,255,${s.a * a})`);
+    ctx.strokeStyle = g; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(x - s.len, y + 6); ctx.quadraticCurveTo(x - s.len * .5, y - 6, x, y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawParticles(t, a) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const p of PARTICLES) {
+    const x = mod(p.x + p.vx * t * p.z, W + 40) - 20, y = mod(p.y + p.vy * t * p.z, H + 40) - 20;
+    const tw = .5 + .5 * Math.sin(t * 2 + p.ph);
+    ctx.fillStyle = `rgba(180,235,255,${a * p.z * .5 * tw})`;
+    ctx.beginPath(); ctx.arc(x, y, p.z * 1.8, 0, 6.283); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ---------- typography ----------
+function fitSize(text, weight, max, maxW) {
+  ctx.font = `${weight} 100px Inter`; const w = ctx.measureText(text).width;
+  return Math.min(max, 100 * maxW / w);
+}
+function gradText(x0, x1, t, glint) {
+  const g = ctx.createLinearGradient(x0, 0, x1, 0);
+  g.addColorStop(0, '#7dd3fc'); g.addColorStop(.5, '#38bdf8'); g.addColorStop(1, '#2563eb');
+  if (glint >= 0 && glint <= 1) {
+    const p = lerp(-.2, 1.2, glint);
+    const s = [[p - .12, null], [p, '#ffffff'], [p + .12, null]];
+    const g2 = ctx.createLinearGradient(x0, 0, x1, 0);
+    const base = k => { const c = k < .5 ? [lerp(125, 56, k * 2), lerp(211, 189, k * 2), lerp(252, 248, k * 2)] : [lerp(56, 37, (k - .5) * 2), lerp(189, 99, (k - .5) * 2), lerp(248, 235, (k - .5) * 2)]; return `rgb(${c.map(Math.round)})`; };
+    for (let j = 0; j <= 20; j++) { const k = j / 20;
+      const d = Math.abs(k - p), m = clamp(1 - d / .12);
+      if (m > 0) { const c = base(k).match(/\d+/g).map(Number).map(v => Math.round(lerp(v, 255, m))); g2.addColorStop(k, `rgb(${c})`); }
+      else g2.addColorStop(k, base(k));
+    }
+    return g2;
+  }
+  return g;
+}
+
+function drawHeadline(t) {
+  const tr = easeInOut(prog(t, 6.9, 8.1));          // intro → header layout
+  const out = 1 - easeInOut(prog(t, 25.6, 26.6));   // fade for outro
+  if (out <= 0) return;
+  const L1 = 'DIFFERENT COMPANIES.', L2a = 'ONE GOAL — ', L2b = 'COOLER COMPUTE.';
+  const sI = fitSize(L1 + ' ', 900, 92, 900), sI2 = fitSize(L2a + L2b, 900, 92, 960);
+  const sIntro = Math.min(sI, sI2), sGrid = 50;
+  const size = lerp(sIntro, sGrid, tr);
+  ctx.save(); ctx.globalAlpha = out;
+  ctx.textBaseline = 'alphabetic';
+
+  // kicker
+  const kick = 'THE DATA CENTER COOLING ECOSYSTEM';
+  const kSize = lerp(22, 17, tr);
+  ctx.font = `600 ${kSize}px Inter`; ctx.letterSpacing = `${lerp(8, 5, tr)}px`;
+  const kn = Math.floor(kick.length * easeOut(prog(t, .9, 2.4)));
+  const kw = ctx.measureText(kick).width;
+  const kx = lerp(540 - kw / 2, GX, tr), ky = lerp(400, 84, tr);
+  ctx.fillStyle = '#7fd3ff';
+  ctx.fillText(kick.slice(0, kn), kx, ky);
+  if (kn < kick.length && t > .9) { const cw = ctx.measureText(kick.slice(0, kn)).width; ctx.fillStyle = `rgba(127,211,255,${.5 + .5 * Math.sin(t * 20)})`; ctx.fillRect(kx + cw + 4, ky - kSize * .8, 3, kSize * .9); }
+  // underline beam
+  const ul = easeExpo(prog(t, 2.0, 3.0));
+  if (ul > 0) { const g = ctx.createLinearGradient(kx, 0, kx + kw, 0); g.addColorStop(0, 'rgba(56,189,248,0)'); g.addColorStop(.5, 'rgba(56,189,248,.9)'); g.addColorStop(1, 'rgba(56,189,248,0)'); ctx.fillStyle = g; ctx.fillRect(kx + kw * (1 - ul) / 2, ky + 14, kw * ul, 2); }
+  ctx.letterSpacing = '0px';
+
+  // line 1 — slam in at 3.0
+  ctx.font = `900 ${size}px Inter`;
+  const w1 = ctx.measureText(L1).width;
+  const a1 = prog(t, 3.0, 3.18), sc1 = lerp(1.6, 1, easeOut(prog(t, 3.0, 3.35)));
+  const x1 = lerp(540 - w1 / 2, GX, tr), y1 = lerp(530, 146, tr);
+  if (a1 > 0) {
+    ctx.save(); ctx.globalAlpha *= a1; ctx.translate(x1 + w1 / 2, y1 - size * .35); ctx.scale(sc1, sc1);
+    ctx.shadowColor = 'rgba(56,189,248,.35)'; ctx.shadowBlur = 30 * (1 - tr * .6);
+    ctx.fillStyle = '#f2f8ff'; ctx.fillText(L1, -w1 / 2, size * .35); ctx.restore();
+  }
+  // line 2 — at 4.5
+  const wa = ctx.measureText(L2a).width, wb = ctx.measureText(L2b).width, w2 = wa + wb;
+  const a2 = prog(t, 4.5, 4.68), sc2 = lerp(1.6, 1, easeOut(prog(t, 4.5, 4.85)));
+  const x2 = lerp(540 - w2 / 2, GX, tr), y2 = lerp(530 + sIntro * 1.12, 146 + sGrid * 1.08, tr);
+  if (a2 > 0) {
+    ctx.save(); ctx.globalAlpha *= a2; ctx.translate(x2 + w2 / 2, y2 - size * .35); ctx.scale(sc2, sc2);
+    const ox = -w2 / 2, oy = size * .35;
+    ctx.fillStyle = '#f2f8ff'; ctx.fillText(L2a, ox, oy);
+    ctx.shadowColor = 'rgba(56,189,248,.55)'; ctx.shadowBlur = 36 * (1 - tr * .5);
+    const gl = Math.max(prog(t, 5.4, 6.4) * (t < 6.4 ? 1 : 2), prog(t, 20.6, 21.6) * (t < 21.6 ? 1 : 2));
+    ctx.fillStyle = gradText(ox + wa, ox + w2, t, gl > 0 && gl <= 1 ? gl : -1);
+    ctx.fillText(L2b, ox + wa, oy); ctx.restore();
+  }
+
+  // subtitle (header layout only)
+  const sa = prog(t, 8.1, 8.6);
+  if (sa > 0) {
+    const sub = 'From precision cooling to liquid cooling, leading companies are powering the next generation of data centers with innovative thermal solutions.';
+    const n = Math.floor(sub.length * prog(t, 8.2, 10.4));
+    ctx.font = '500 18px Inter'; ctx.fillStyle = `rgba(160,190,220,${sa})`;
+    wrap(sub.slice(0, n), GX, 256, 900, 24, 2);
+  }
+  ctx.restore();
+}
+
+function wrap(text, x, y, maxW, lh, maxLines) {
+  const words = text.split(' '); let line = '', n = 0;
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxW && line) { ctx.fillText(line, x, y + n * lh); line = w; n++; if (n >= maxLines) return; }
+    else line = test;
+  }
+  if (line) ctx.fillText(line, x, y + n * lh);
+}
+
+// ---------- cards ----------
+function drawCardBody(i, u, glow, hero) {
+  const [key, label] = CARDS[i];
+  // shadow + glow
+  ctx.save();
+  ctx.shadowColor = `rgba(56,189,248,${.25 + glow * .6})`; ctx.shadowBlur = 24 + glow * 40;
+  const bg = ctx.createLinearGradient(0, 0, 0, CH);
+  bg.addColorStop(0, '#ffffff'); bg.addColorStop(1, '#eef5fc');
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.roundRect(0, 0, CW, CH, 16); ctx.fill();
+  ctx.restore();
+
+  ctx.save(); ctx.beginPath(); ctx.roundRect(0, 0, CW, CH, 16); ctx.clip();
+  ctx.globalCompositeOperation = 'multiply';
+  // logo
+  const la = easeOut(prog(u, .08, .38));
+  const L = IMG[key + 'L'];
+  if (L && la > 0) {
+    const lh = 46, lw = lh * L.width / L.height;
+    ctx.globalAlpha = la; ctx.drawImage(L, 12 + (1 - la) * -16, 10, Math.min(lw, CW - 24), Math.min(lw, CW - 24) * L.height / L.width);
+  }
+  // product
+  const pa = easeOut(prog(u, .22, .62));
+  const U = IMG[key + 'U'];
+  if (U && pa > 0) {
+    const pw = CW - 12, ph = pw * U.height / U.width;
+    ctx.globalAlpha = pa; ctx.drawImage(U, 6, CH - ph - 4 + (1 - pa) * 30, pw, ph);
+  }
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  // label
+  const ta = easeOut(prog(u, .16, .46));
+  if (ta > 0) {
+    ctx.font = '600 15px Inter'; ctx.fillStyle = `rgba(20,38,70,${ta})`; ctx.textBaseline = 'alphabetic';
+    wrap(label, 16 + (1 - ta) * 12, 82, CW - 30, 19, 2);
+  }
+  // shine sweep
+  const sp = prog(u, .35, .95);
+  if (sp > 0 && sp < 1) {
+    const x = lerp(-CW, CW * 2, easeInOut(sp));
+    const g = ctx.createLinearGradient(x - 80, 0, x + 80, CH * .6);
+    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.5, 'rgba(200,240,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CW, CH);
+  }
+  // scan line
+  const sc = prog(u, .2, .7);
+  if (sc > 0 && sc < 1) {
+    const y = lerp(0, CH, sc);
+    ctx.fillStyle = `rgba(56,189,248,${.7 * Math.sin(sc * Math.PI)})`; ctx.fillRect(0, y, CW, 2);
+    const g = ctx.createLinearGradient(0, y - 40, 0, y); g.addColorStop(0, 'rgba(56,189,248,0)'); g.addColorStop(1, 'rgba(56,189,248,.18)');
+    ctx.fillStyle = g; ctx.fillRect(0, y - 40, CW, 40);
+  }
+  ctx.restore();
+  // border
+  ctx.strokeStyle = `rgba(56,189,248,${.25 + glow * .75})`; ctx.lineWidth = hero ? 1.2 : 1 + glow * 1.5;
+  ctx.beginPath(); ctx.roundRect(.5, .5, CW - 1, CH - 1, 16); ctx.stroke();
+}
+
+function waveGlow(i, t) {
+  const s = slot(i), d = s.x + CW / 2 + (s.y + CH / 2) * .7;
+  let g = 0;
+  for (const tw of [21.0, 23.4]) { const front = (t - tw) * 1500 - 200; g = Math.max(g, Math.exp(-Math.pow((d - front) / 140, 2))); }
+  return g;
+}
+
+function cardState(i, t) {
+  const u = t - (CARD_T0 + i * CARD_STEP);
+  if (u < 0) return null;
+  const s = slot(i), hx = 540 - CW / 2, hy = 650 - CH / 2, HS = 1.95;
+  let x, y, sc, a = 1, rot = 0, flip = 1, phase;
+  if (u < .45) { const k = easeBack(prog(u, 0, .45)); sc = lerp(.5, HS, k); x = hx; y = hy + (1 - k) * 60; a = prog(u, 0, .18); rot = lerp(-.12, 0, easeOut(prog(u, 0, .45))); flip = Math.max(.02, Math.sin(lerp(.2, 1, easeOut(prog(u, 0, .4))) * Math.PI / 2)); phase = 'hero'; }
+  else if (u < .7) { sc = HS; x = hx; y = hy; phase = 'hero'; }
+  else if (u < 1.2) { const k = easeInOut(prog(u, .7, 1.2)); sc = lerp(HS, 1, k); x = lerp(hx, s.x, k); y = lerp(hy, s.y, k); phase = 'fly'; }
+  else { sc = 1; x = s.x; y = s.y; phase = 'grid'; }
+  return { u, x, y, sc, a, rot, flip, phase };
+}
+
+function drawCards(t) {
+  const out = easeInOut(prog(t, 25.8, 27.2));
+  if (t < CARD_T0) return;
+  ctx.save();
+  // grid recedes during outro
+  ctx.globalAlpha = lerp(1, .045, out);
+  ctx.translate(540, 666); ctx.scale(lerp(1, .9, out), lerp(1, .9, out)); ctx.translate(-540, -666);
+
+  drawNetwork(t);
+  const top = [];
+  for (let i = 0; i < CARDS.length; i++) {
+    const st = cardState(i, t); if (!st) continue;
+    if (st.phase !== 'grid') { top.push([i, st]); continue; }
+    const glow = waveGlow(i, t) + Math.exp(-Math.pow((st.u - 1.25) / .12, 2)) * .9;
+    ctx.save(); ctx.translate(st.x, st.y); drawCardBody(i, st.u, glow, false); ctx.restore();
+    // landing ring
+    const r = prog(st.u, 1.2, 1.7);
+    if (r > 0 && r < 1) { ctx.strokeStyle = `rgba(125,211,252,${(1 - r) * .8})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(st.x - r * 18, st.y - r * 18, CW + r * 36, CH + r * 36, 16 + r * 10); ctx.stroke(); }
+  }
+  for (const [i, st] of top) {
+    // spotlight behind hero
+    const sa = st.phase === 'hero' ? st.a : 1 - prog(st.u, .7, 1.1);
+    const cx = st.x + CW / 2, cy = st.y + CH / 2;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 480);
+    g.addColorStop(0, `rgba(56,189,248,${.32 * sa})`); g.addColorStop(1, 'rgba(56,189,248,0)');
+    ctx.fillStyle = g; ctx.fillRect(cx - 480, cy - 480, 960, 960);
+    ctx.save(); ctx.globalAlpha *= st.a;
+    ctx.translate(cx, cy); ctx.rotate(st.rot); ctx.scale(st.sc * st.flip, st.sc); ctx.translate(-CW / 2, -CH / 2);
+    drawCardBody(i, st.u, st.phase === 'hero' ? .5 : .3, true);
+    ctx.restore();
+    // index tag under hero
+    if (st.phase === 'hero') {
+      ctx.save(); ctx.globalAlpha *= st.a; ctx.font = '600 15px Inter'; ctx.letterSpacing = '4px'; ctx.fillStyle = '#7fd3ff'; ctx.textAlign = 'center';
+      ctx.fillText(`${String(i + 1).padStart(2, '0')} / 12`, cx, st.y + CH / 2 + CH * st.sc / 2 + 34); ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+
+// ecosystem links between neighbouring cards, with travelling pulses
+function drawNetwork(t) {
+  const a = prog(t, 20.2, 21.2);
+  if (a <= 0) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const c = i => { const s = slot(i); return [s.x + CW / 2, s.y + CH / 2]; };
+  const links = [];
+  for (let i = 0; i < 12; i++) { if (i % 4 < 3) links.push([i, i + 1]); if (i < 8) links.push([i, i + 4]); }
+  links.forEach(([p, q], n) => {
+    const [x1, y1] = c(p), [x2, y2] = c(q);
+    ctx.strokeStyle = `rgba(56,189,248,${.35 * a})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    const k = mod(t * .9 + n * .37, 1);
+    const px = lerp(x1, x2, k), py = lerp(y1, y2, k);
+    const g = ctx.createRadialGradient(px, py, 0, px, py, 14);
+    g.addColorStop(0, `rgba(190,240,255,${a})`); g.addColorStop(1, 'rgba(56,189,248,0)');
+    ctx.fillStyle = g; ctx.fillRect(px - 14, py - 14, 28, 28);
+  });
+  ctx.restore();
+}
+
+function drawCounter(t) {
+  const a = prog(t, 8.3, 8.8) * (1 - prog(t, 25.6, 26.2));
+  if (a <= 0) return;
+  const n = Math.min(12, Math.max(0, Math.floor((t - CARD_T0) / CARD_STEP) + 1));
+  ctx.save(); ctx.globalAlpha = a; ctx.textAlign = 'right';
+  if (COVER) {
+    ctx.font = '700 22px Inter'; ctx.fillStyle = '#f2f8ff'; ctx.fillText('Anupam Baruah', 1020, 84);
+    ctx.font = '600 12px Inter'; ctx.letterSpacing = '3px'; ctx.fillStyle = '#7fd3ff'; ctx.fillText('12 COOLING LEADERS', 1020 + 3, 108);
+    ctx.restore(); return;
+  }
+  ctx.font = '800 40px Inter'; ctx.fillStyle = '#f2f8ff'; ctx.fillText(String(n).padStart(2, '0'), 1020, 92);
+  ctx.font = '600 13px Inter'; ctx.letterSpacing = '3px'; ctx.fillStyle = '#7fd3ff'; ctx.fillText('LEADERS', 1020, 114);
+  ctx.restore();
+}
+
+// wave of cold light across the grid
+function drawWave(t) {
+  for (const tw of [21.0, 23.4]) {
+    const k = prog(t, tw, tw + 1.3); if (k <= 0 || k >= 1) continue;
+    const front = (t - tw) * 1500 - 200;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.translate(0, 0);
+    const g = ctx.createLinearGradient(front - 200, 0, front + 120, 120);
+    g.addColorStop(0, 'rgba(56,189,248,0)'); g.addColorStop(.6, `rgba(125,211,252,${.16 * Math.sin(k * Math.PI)})`); g.addColorStop(1, 'rgba(56,189,248,0)');
+    ctx.setTransform(1, 0, -.7, 1, 0, 0); // shear to match the diagonal
+    ctx.fillStyle = g; ctx.fillRect(front - 260, 0, 420, H);
+    ctx.restore();
+  }
+}
+
+// ---------- outro ----------
+function drawOutro(t) {
+  const a = prog(t, 26.2, 27.0); if (a <= 0) return;
+  ctx.save(); ctx.textAlign = 'center';
+  const k1 = easeOut(prog(t, 26.2, 27.0));
+  ctx.font = '600 22px Inter'; ctx.letterSpacing = '7px'; ctx.fillStyle = `rgba(160,200,235,${k1})`;
+  ctx.fillText('DIFFERENT COMPANIES. ONE GOAL.', 540 + 4, 450 - (1 - k1) * 20);
+  ctx.letterSpacing = '0px';
+  const k2 = easeOut(prog(t, 26.5, 27.4));
+  const big = 'COOLER COMPUTE.'; const s = fitSize(big, 900, 130, 940);
+  ctx.font = `900 ${s}px Inter`; const bw = ctx.measureText(big).width;
+  ctx.save(); ctx.globalAlpha = k2; ctx.translate(540, 580); const sc = lerp(1.25, 1, k2); ctx.scale(sc, sc);
+  ctx.shadowColor = 'rgba(56,189,248,.6)'; ctx.shadowBlur = 50;
+  const gl = prog(t, 27.6, 28.8);
+  ctx.fillStyle = gradText(-bw / 2, bw / 2, t, gl > 0 && gl < 1 ? gl : -1);
+  ctx.fillText(big, 0, 0); ctx.restore();
+  const k3 = easeExpo(prog(t, 27.3, 28.2));
+  const g = ctx.createLinearGradient(240, 0, 840, 0); g.addColorStop(0, 'rgba(56,189,248,0)'); g.addColorStop(.5, 'rgba(56,189,248,.9)'); g.addColorStop(1, 'rgba(56,189,248,0)');
+  ctx.fillStyle = g; ctx.fillRect(540 - 300 * k3, 632, 600 * k3, 2);
+  const k4 = prog(t, 27.8, 28.6);
+  ctx.font = '500 20px Inter'; ctx.fillStyle = `rgba(170,195,225,${k4})`;
+  ctx.fillText('From precision cooling to liquid cooling — the thermal backbone of AI.', 540, 686);
+  ctx.font = '700 15px Inter'; ctx.letterSpacing = '5px'; ctx.fillStyle = `rgba(127,211,255,${k4 * .9})`;
+  ctx.fillText('THE DATA CENTER COOLING ECOSYSTEM', 544, 760);
+  // author credit
+  const k5 = easeOut(prog(t, 28.4, 29.3));
+  if (k5 > 0) {
+    ctx.letterSpacing = '0px';
+    ctx.fillStyle = `rgba(56,189,248,${k5 * .6})`; ctx.fillRect(540 - 24 * k5, 826, 48 * k5, 2);
+    ctx.font = '700 34px Inter'; ctx.fillStyle = `rgba(242,248,255,${k5})`;
+    ctx.shadowColor = 'rgba(56,189,248,.45)'; ctx.shadowBlur = 24;
+    ctx.fillText('Anupam Baruah', 540, 880 - (1 - k5) * 14);
+  }
+  ctx.restore();
+}
+
+// ---------- post ----------
+function drawPost(t) {
+  // vignette
+  const v = ctx.createRadialGradient(540, 540, 380, 540, 540, 800);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,4,10,.65)');
+  ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  // grain
+  if (grain) {
+    ctx.save(); ctx.globalAlpha = .045; ctx.globalCompositeOperation = 'overlay';
+    const r = rng(Math.floor(t * 30) + 1); const ox = -r() * 256, oy = -r() * 256;
+    for (let x = ox; x < W; x += 256) for (let y = oy; y < H; y += 256) ctx.drawImage(grain, x, y);
+    ctx.restore();
+  }
+  // impact flashes
+  let f = 0;
+  for (const [ti, s] of [[3.0, .35], [4.5, .3], [26.2, .25]]) f += s * Math.exp(-Math.max(0, t - ti) * 9) * (t >= ti ? 1 : 0);
+  if (f > .002) { ctx.fillStyle = `rgba(190,235,255,${f})`; ctx.fillRect(0, 0, W, H); }
+  // fades
+  const fin = 1 - prog(t, 0, 1.2), fout = prog(t, 31.0, 33.0);
+  const blk = Math.max(fin, fout);
+  if (blk > 0) { ctx.fillStyle = `rgba(1,6,15,${blk})`; ctx.fillRect(0, 0, W, H); }
+}
+
+function shake(t) {
+  let s = 0;
+  for (const [ti, m] of [[3.0, 9], [4.5, 7], [26.2, 6]]) if (t >= ti) s += m * Math.exp(-(t - ti) * 10);
+  return [Math.sin(t * 91) * s, Math.cos(t * 77) * s];
+}
+
+function renderMain(t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.letterSpacing = '0px'; ctx.textAlign = 'left';
+  drawBackground(t);
+  const [sx, sy] = shake(t);
+  ctx.translate(sx, sy);
+  const corr = 1 - easeInOut(prog(t, 6.8, 8.4));
+  drawCorridor(t, corr);
+  drawFloorGrid(t, prog(t, 7.4, 8.6) * .8);
+  drawAirflow(t, .6 + .4 * corr);
+  drawParticles(t, prog(t, 6.5, 8.5));
+  drawWave(t);
+  drawCards(t);
+  drawHeadline(t);
+  drawCounter(t);
+  drawOutro(t);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  drawPost(t);
+}
+
+// Cover = the completed grid with the author credit, cached once.
+let coverCv = null;
+function getCover() {
+  if (coverCv) return coverCv;
+  coverCv = document.createElement('canvas'); coverCv.width = W; coverCv.height = H;
+  const main = ctx; ctx = coverCv.getContext('2d'); COVER = true;
+  try { renderMain(COVER_T); } finally { ctx = main; COVER = false; }
+  return coverCv;
+}
+function render(t) {
+  if (t >= LEAD) return renderMain(t - LEAD);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#01060f'; ctx.fillRect(0, 0, W, H);
+  const k = easeInOut(prog(t, 1.0, LEAD));
+  ctx.globalAlpha = 1 - k;
+  const z = 1 + k * .04; ctx.translate(540, 540); ctx.scale(z, z); ctx.translate(-540, -540);
+  ctx.drawImage(getCover(), 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+}
+
+/* ===================================================================
+   SOUND — synthesized score (A minor, 120 BPM). Works on AudioContext
+   and OfflineAudioContext alike.
+   =================================================================== */
+function buildScore(ac, dest, T) {
+  const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+  const sr = ac.sampleRate;
+  const noise = (() => { const b = ac.createBuffer(1, sr * 2, sr), d = b.getChannelData(0), r = rng(3); for (let i = 0; i < d.length; i++) d[i] = r() * 2 - 1; return b; })();
+
+  const comp = ac.createDynamicsCompressor();
+  comp.threshold.value = -16; comp.ratio.value = 3.5; comp.attack.value = .005; comp.release.value = .2;
+  const master = ac.createGain(); master.gain.value = .62;
+  // soft clipper after the bus compressor catches transient overs
+  const clip = ac.createWaveShaper(); { const c = new Float32Array(2048); for (let i = 0; i < 2048; i++) { const x = i / 1023.5 - 1; c[i] = .89 * Math.tanh(x * 1.4) / Math.tanh(1.4); } clip.curve = c; }
+  master.connect(comp); comp.connect(clip); clip.connect(dest);
+  // reverb
+  const rv = ac.createConvolver();
+  { const len = sr * 3.2, b = ac.createBuffer(2, len, sr), r = rng(11); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (r() * 2 - 1) * Math.pow(1 - i / len, 3.2); } rv.buffer = b; }
+  const rvG = ac.createGain(); rvG.gain.value = .55; rv.connect(rvG); rvG.connect(master);
+  // ping-pong-ish delay for plucks
+  const dl = ac.createDelay(1); dl.delayTime.value = .375; const fb = ac.createGain(); fb.gain.value = .32; const dlf = ac.createBiquadFilter(); dlf.type = 'lowpass'; dlf.frequency.value = 2800;
+  dl.connect(dlf); dlf.connect(fb); fb.connect(dl); const dlOut = ac.createGain(); dlOut.gain.value = .35; dlf.connect(dlOut); dlOut.connect(master); dlOut.connect(rv);
+
+  const env = (g, t0, a, peak, hold, rel) => { g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(peak, t0 + a); g.gain.setValueAtTime(peak, t0 + a + hold); g.gain.exponentialRampToValueAtTime(.0001, t0 + a + hold + rel); };
+
+  // pads
+  const padBus = ac.createGain(); const padLP = ac.createBiquadFilter(); padLP.type = 'lowpass'; padLP.Q.value = .7;
+  padBus.connect(padLP); padLP.connect(master); padLP.connect(rv);
+  padLP.frequency.setValueAtTime(300, T); padLP.frequency.exponentialRampToValueAtTime(1400, T + 7.5); padLP.frequency.setValueAtTime(1400, T + 7.5);
+  padLP.frequency.linearRampToValueAtTime(2200, T + 20); padLP.frequency.linearRampToValueAtTime(3000, T + 27); padLP.frequency.exponentialRampToValueAtTime(500, T + 33);
+  padBus.gain.setValueAtTime(.0, T); padBus.gain.linearRampToValueAtTime(1, T + 2); padBus.gain.setValueAtTime(1, T + 30); padBus.gain.linearRampToValueAtTime(0, T + 33);
+  const CH = [[57, 60, 64, 69], [53, 57, 60, 65], [55, 60, 64, 67], [55, 59, 62, 67]];
+  const ROOT = [33, 29, 36, 31];
+  const chordAt = t => Math.floor(t / 2) % 4;
+  for (let bar = 0; bar < 15; bar++) {
+    const t0 = T + bar * 2, ch = CH[bar % 4], last = bar === 13;
+    const dur = last ? 5.5 : 2.3;
+    if (bar === 14) break;
+    for (const m of ch) for (const det of [-8, 8]) {
+      const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = hz(m); o.detune.value = det;
+      const g = ac.createGain(); env(g, t0, .5, .022, dur - 1.0, 1.4);
+      o.connect(g); g.connect(padBus); o.start(t0); o.stop(t0 + dur + 1.6);
+    }
+  }
+  // sub drone
+  { const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = hz(33); const g = ac.createGain(); g.gain.setValueAtTime(0, T); g.gain.linearRampToValueAtTime(.18, T + 3); g.gain.setValueAtTime(.18, T + 7); g.gain.linearRampToValueAtTime(0, T + 8.5); o.connect(g); g.connect(master); o.start(T); o.stop(T + 9); }
+
+  const kick = (t, amp = 1) => {
+    const o = ac.createOscillator(), g = ac.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + .14);
+    g.gain.setValueAtTime(amp * .9, t); g.gain.exponentialRampToValueAtTime(.001, t + .42); o.connect(g); g.connect(master); o.start(t); o.stop(t + .45);
+  };
+  const hat = (t, amp = 1, open = false) => {
+    const s = ac.createBufferSource(); s.buffer = noise; const f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 8000;
+    const g = ac.createGain(); g.gain.setValueAtTime(.1 * amp, t); g.gain.exponentialRampToValueAtTime(.001, t + (open ? .25 : .05));
+    s.connect(f); f.connect(g); g.connect(master); s.start(t, (t * 7.3) % 1.5); s.stop(t + .3);
+  };
+  const bass = (t, m, d) => {
+    const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = hz(m);
+    const s = ac.createOscillator(); s.type = 'sine'; s.frequency.value = hz(m);
+    const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 6; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(140, t + d);
+    const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.16, t + .01); g.gain.exponentialRampToValueAtTime(.001, t + d);
+    o.connect(f); s.connect(f); f.connect(g); g.connect(master); o.start(t); s.start(t); o.stop(t + d + .05); s.stop(t + d + .05);
+  };
+  const pluck = (t, m, amp = 1) => {
+    for (const [type, mult, a] of [['triangle', 1, .16], ['square', 2, .03]]) {
+      const o = ac.createOscillator(); o.type = type; o.frequency.value = hz(m) * mult;
+      const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(5000, t); f.frequency.exponentialRampToValueAtTime(400, t + .35);
+      const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a * amp, t + .004); g.gain.exponentialRampToValueAtTime(.0008, t + .7);
+      o.connect(f); f.connect(g); g.connect(master); g.connect(dl); g.connect(rv); o.start(t); o.stop(t + .75);
+    }
+  };
+  const bell = (t, m, amp = 1) => {
+    for (const [r, a, d] of [[1, .06, 2.2], [2.76, .025, 1.2], [5.4, .012, .6]]) {
+      const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = hz(m) * r; const g = ac.createGain();
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a * amp, t + .005); g.gain.exponentialRampToValueAtTime(.0005, t + d);
+      o.connect(g); g.connect(master); g.connect(rv); o.start(t); o.stop(t + d + .05);
+    }
+  };
+  const whoosh = (t, d, f0, f1, amp = 1) => {
+    const s = ac.createBufferSource(); s.buffer = noise; s.loop = true;
+    const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.4; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + d);
+    const g = ac.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.32 * amp, t + d * .85); g.gain.exponentialRampToValueAtTime(.0001, t + d + .12);
+    s.connect(f); f.connect(g); g.connect(master); g.connect(rv); s.start(t); s.stop(t + d + .2);
+  };
+  const impact = (t, amp = 1) => {
+    kick(t, .75 * amp);
+    const o = ac.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(30, t + 1.6);
+    const g = ac.createGain(); g.gain.setValueAtTime(.36 * amp, t); g.gain.exponentialRampToValueAtTime(.001, t + 2.2); o.connect(g); g.connect(master); o.start(t); o.stop(t + 2.3);
+    const s = ac.createBufferSource(); s.buffer = noise; const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(6000, t); f.frequency.exponentialRampToValueAtTime(200, t + .8);
+    const g2 = ac.createGain(); g2.gain.setValueAtTime(.24 * amp, t); g2.gain.exponentialRampToValueAtTime(.001, t + 1.0);
+    s.connect(f); f.connect(g2); g2.connect(master); g2.connect(rv); s.start(t); s.stop(t + 1.1);
+  };
+
+  // --- arrangement ---
+  whoosh(T - .7, .8, 4000, 400, .35);     // cover dissolves into the intro
+  whoosh(T + .4, 2.6, 200, 5000, .8);      // riser into first slam
+  impact(T + 3.0); impact(T + 4.5, .85);
+  bell(T + 1.0, 81, .6); bell(T + 5.45, 88, .9);  // kicker + glint
+  whoosh(T + 6.9, 1.1, 400, 7000, 1);       // transition into the grid
+  impact(T + 8.0, .7);
+  for (let i = 0; i < 12; i++) {           // card reveals
+    const tc = T + CARD_T0 + i * CARD_STEP, ch = CH[chordAt(CARD_T0 + i * CARD_STEP)];
+    pluck(tc, ch[i % 4] + 12, 1);
+    whoosh(tc + .62, .5, 1500, 500, .35);   // fly-to-slot swish
+  }
+  for (let b = 16; b < 52; b++) {          // drums + bass 8.0 → 26.0
+    const t = T + b * .5;
+    kick(t, b % 2 ? .75 : .95);
+    hat(t + .25, 1); if (b >= 40) hat(t + .125, .5);
+    if (b % 4 === 3) hat(t + .25, .6, true);
+    const r = ROOT[chordAt(b * .5)];
+    bass(t, r + 12, .22); bass(t + .25, r + 12, .2);
+  }
+  for (let s = 0; s < 44; s++) {           // arpeggio over the full grid 20.5 → 26
+    const tt = 20.5 + s * .125, ch = CH[chordAt(tt)];
+    pluck(T + tt, ch[[0, 1, 2, 3, 2, 1][s % 6]] + 12, .35);
+  }
+  whoosh(T + 20.2, .8, 600, 8000, .6); whoosh(T + 22.6, .8, 600, 8000, .5);  // cold waves
+  whoosh(T + 25.0, 1.2, 300, 6000, .9);
+  impact(T + 26.2, 1);
+  bell(T + 27.6, 81, 1); bell(T + 28.0, 88, .6);
+  for (const m of [45, 52, 57, 60, 64, 69, 76]) {   // final A-minor(add9) swell
+    const o = ac.createOscillator(); o.type = m < 50 ? 'sine' : 'triangle'; o.frequency.value = hz(m);
+    const g = ac.createGain(); g.gain.setValueAtTime(0, T + 26.2); g.gain.linearRampToValueAtTime(m < 50 ? .14 : .035, T + 27.5); g.gain.setValueAtTime(m < 50 ? .14 : .035, T + 30); g.gain.linearRampToValueAtTime(0, T + 33);
+    o.connect(g); g.connect(master); g.connect(rv); o.start(T + 26.2); o.stop(T + 33.1);
+  }
+}
+
+// WAV export used by the video renderer
+async function renderAudioWav() {
+  const sr = 48000, oac = new OfflineAudioContext(2, sr * DURATION, sr);
+  buildScore(oac, oac.destination, LEAD);
+  const buf = await oac.startRendering();
+  const n = buf.length, L = buf.getChannelData(0), Rr = buf.getChannelData(1);
+  const ab = new ArrayBuffer(44 + n * 4), v = new DataView(ab);
+  const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  ws(0, 'RIFF'); v.setUint32(4, 36 + n * 4, true); ws(8, 'WAVE'); ws(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 2, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 4, true); v.setUint16(32, 4, true); v.setUint16(34, 16, true); ws(36, 'data'); v.setUint32(40, n * 4, true);
+  for (let i = 0, o = 44; i < n; i++, o += 4) { v.setInt16(o, clamp(L[i], -1, 1) * 32767, true); v.setInt16(o + 2, clamp(Rr[i], -1, 1) * 32767, true); }
+  let bin = ''; const u8 = new Uint8Array(ab); for (let i = 0; i < u8.length; i += 32768) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 32768));
+  return btoa(bin);
+}
+
+/* ===================================================================
+   PLAYER
+   =================================================================== */
+let ac = null, outGain = null, start = 0, playing = false, muted = false, rafId = 0;
+const overlay = document.getElementById('overlay'), hint = document.getElementById('hint');
+function play() {
+  if (ac) ac.close();
+  ac = new (window.AudioContext || window.webkitAudioContext)();
+  outGain = ac.createGain(); outGain.gain.value = muted ? 0 : 1; outGain.connect(ac.destination);
+  start = ac.currentTime + .15;
+  buildScore(ac, outGain, start + LEAD);
+  overlay.classList.add('hidden'); playing = true;
+  cancelAnimationFrame(rafId);
+  const loop = () => {
+    const t = ac.currentTime - start;
+    render(clamp(t, 0, DURATION));
+    if (t < DURATION) rafId = requestAnimationFrame(loop);
+    else { playing = false; overlay.classList.remove('hidden'); document.getElementById('playBtn').lastChild.textContent = 'Replay'; }
+  };
+  loop();
+}
+document.getElementById('playBtn').onclick = play;
+document.getElementById('replay').onclick = play;
+document.getElementById('mute').onclick = () => { muted = !muted; if (outGain) outGain.gain.value = muted ? 0 : 1; document.getElementById('mute').textContent = muted ? '🔇' : '🔊'; };
+addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'r') play(); if (e.key === 'm') document.getElementById('mute').click(); });
+
+window.__ready = loadAssets().then(() => { render(0); hint.textContent = `${Math.round(DURATION)} s · sound on for the full experience`; });
+window.__render = render; window.__audio = renderAudioWav; window.__duration = DURATION;
+</script>
+</body>
+</html>

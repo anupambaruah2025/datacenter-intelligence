@@ -35,3 +35,6 @@ powershell -ExecutionPolicy Bypass -File server.ps1 -Port 8099
 
 ## Notes
 Company **key facts** are researched from primary filings / investor releases (FY2025–FY2026) and carry source links. Relationships are derived from the knowledge graph. No financials are estimated and no customer project names are included.
+
+## Cooling ecosystem motion piece
+`cooling/index.html` is a ~35-second animated piece, *Cooler Compute*, covering 12 cooling OEMs. It is drawn on canvas and its soundtrack is synthesized live with Web Audio, so there are no audio files. Open it and press **Play with sound**. A rendered 1080×1080 MP4 is at `cooling/cooler-compute.mp4`, and its cover image is at `cooling/cover.png`. To re-export it, run `node cooling/render.js video`.
