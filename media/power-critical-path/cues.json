@@ -1,0 +1,85 @@
+{
+  "duration": 30,
+  "voice": {
+    "_note": "Each line starts at `at` and must finish by `end` (scene boundary). sound.py speeds a line up by up to 12% if it overruns.",
+    "lines": [
+      {
+        "at": 0.25,
+        "end": 3.4,
+        "text": "Not GPUs. Not cooling. Not construction."
+      },
+      {
+        "at": 3.55,
+        "end": 4.9,
+        "text": "It's power."
+      },
+      {
+        "at": 5.2,
+        "end": 11.2,
+        "text": "Nscale's Loughton campus needs up to ninety megawatts. Reportedly, the grid can't supply it until the twenty-thirties."
+      },
+      {
+        "at": 11.7,
+        "end": 15.6,
+        "text": "Designed. Built. Mechanically complete. And still not energised."
+      },
+      {
+        "at": 16.1,
+        "end": 23.1,
+        "text": "So treat utility energisation as a formal commissioning milestone. Everything downstream waits on permanent power."
+      },
+      {
+        "at": 23.6,
+        "end": 27.3,
+        "text": "Staged energisation. Onsite generation. Flexible power architecture."
+      },
+      {
+        "at": 27.7,
+        "end": 29.8,
+        "text": "Power is the critical path."
+      }
+    ]
+  },
+  "sfx": [
+    {
+      "at": 0.3,
+      "dur": 1.2,
+      "gain": 0.5,
+      "text": "single crisp red-marker strike-through swipe, digital UI, clean"
+    },
+    {
+      "at": 3.45,
+      "dur": 2.0,
+      "gain": 0.9,
+      "text": "massive electrical surge, high-voltage arc crackle into deep cinematic boom"
+    },
+    {
+      "at": 6.0,
+      "dur": 1.6,
+      "gain": 0.45,
+      "text": "power line energising hum rising, electric buzz sweep"
+    },
+    {
+      "at": 7.6,
+      "dur": 1.5,
+      "gain": 0.7,
+      "text": "electrical fault, power cut-out zap followed by dying hum"
+    },
+    {
+      "at": 17.55,
+      "dur": 2.5,
+      "gain": 0.8,
+      "text": "large machinery powering down, transformer hum fading out, tense low impact"
+    },
+    {
+      "at": 27.5,
+      "dur": 2.5,
+      "gain": 0.9,
+      "text": "deep cinematic sub-bass impact with shimmering tail, trailer ending hit"
+    }
+  ],
+  "music": {
+    "gain": 0.22,
+    "prompt": "30-second cinematic tech-documentary underscore, dark and tense, pulsing synth bass at 100 BPM, ticking hi-hats, rising tension until a stall at 17 seconds where the music drops to a low drone, then rebuilds and resolves on a confident final hit at 27.5 seconds. No vocals."
+  }
+}

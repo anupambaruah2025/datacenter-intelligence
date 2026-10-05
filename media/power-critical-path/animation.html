@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Power Is the Critical Path</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; background: #04060c; height: 100%; }
+  body { display: grid; place-items: center; }
+  canvas { width: min(100vw, 100vh); height: min(100vw, 100vh); display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1080"></canvas>
+<script>
+/*
+  30-second deterministic animation: every frame is a pure function of t (seconds).
+  render.mjs calls window.render(t) per frame; opening this file in a browser plays it live.
+  Scene timings are mirrored in cues.json (voice-over + SFX sync).
+*/
+const C = document.getElementById('c');
+const X = C.getContext('2d');
+const W = 1080, H = 1080, DUR = 30;
+const F = '"Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+
+const COL = {
+  bg: '#04060c', ink: '#eef3ff', dim: '#6b7894', faint: '#25304a',
+  cyan: '#38e8ff', blue: '#3b82f6', amber: '#ffb020', red: '#ff4d5e', green: '#34d399',
+};
+
+// ---------- helpers ----------
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const easeOut = k => 1 - Math.pow(1 - k, 3);
+const easeInOut = k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const easeBack = k => { const c = 1.70158; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+// visibility window with fade in/out
+const win = (t, a, b, fi = .4, fo = .4) => Math.min(easeOut(prog(t, a, a + fi)), 1 - easeInOut(prog(t, b - fo, b)));
+function rand(seed) { let s = seed; return () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646; }
+
+function text(str, x, y, { size = 40, weight = 700, color = COL.ink, align = 'center', alpha = 1, spacing = 0, glow = 0, base = 'middle' } = {}) {
+  if (alpha <= 0) return;
+  X.save();
+  X.globalAlpha *= alpha;
+  X.font = `${weight} ${size}px ${F}`;
+  X.fillStyle = color; X.textAlign = align; X.textBaseline = base;
+  if ('letterSpacing' in X) X.letterSpacing = spacing + 'px';
+  if (glow) { X.shadowColor = color; X.shadowBlur = glow; }
+  X.fillText(str, x, y);
+  X.restore();
+}
+function measure(str, size, weight = 700, spacing = 0) {
+  X.save(); X.font = `${weight} ${size}px ${F}`;
+  if ('letterSpacing' in X) X.letterSpacing = spacing + 'px';
+  const w = X.measureText(str).width; X.restore(); return w;
+}
+function line(x1, y1, x2, y2, color, w = 2, alpha = 1, glow = 0, dash = null) {
+  X.save(); X.globalAlpha *= alpha; X.strokeStyle = color; X.lineWidth = w; X.lineCap = 'round';
+  if (dash) X.setLineDash(dash);
+  if (glow) { X.shadowColor = color; X.shadowBlur = glow; }
+  X.beginPath(); X.moveTo(x1, y1); X.lineTo(x2, y2); X.stroke(); X.restore();
+}
+function circle(x, y, r, { fill = null, stroke = null, w = 2, alpha = 1, glow = 0 } = {}) {
+  X.save(); X.globalAlpha *= alpha;
+  if (glow) { X.shadowColor = stroke || fill; X.shadowBlur = glow; }
+  X.beginPath(); X.arc(x, y, r, 0, Math.PI * 2);
+  if (fill) { X.fillStyle = fill; X.fill(); }
+  if (stroke) { X.strokeStyle = stroke; X.lineWidth = w; X.stroke(); }
+  X.restore();
+}
+function rrect(x, y, w, h, r, { fill = null, stroke = null, lw = 1.5, alpha = 1, glow = 0, dash = null } = {}) {
+  X.save(); X.globalAlpha *= alpha;
+  if (glow) { X.shadowColor = stroke || fill; X.shadowBlur = glow; }
+  if (dash) X.setLineDash(dash);
+  X.beginPath(); X.roundRect(x, y, w, h, r);
+  if (fill) { X.fillStyle = fill; X.fill(); }
+  if (stroke) { X.strokeStyle = stroke; X.lineWidth = lw; X.stroke(); }
+  X.restore();
+}
+function kicker(str, y, alpha, color = COL.cyan) {
+  const w = measure(str, 20, 700, 6);
+  line(W / 2 - w / 2 - 60, y, W / 2 - w / 2 - 20, y, color, 2, alpha);
+  line(W / 2 + w / 2 + 20, y, W / 2 + w / 2 + 60, y, color, 2, alpha);
+  text(str, W / 2, y, { size: 20, weight: 700, color, spacing: 6, alpha });
+}
+// deterministic flicker (for faults)
+const flick = t => (Math.sin(t * 61) * Math.sin(t * 23.7) > -.1 ? 1 : .35);
+
+// ---------- background ----------
+const R = rand(7);
+const PARTS = Array.from({ length: 90 }, () => ({ x: R() * W, y: R() * H, s: .4 + R() * 1.6, v: 6 + R() * 22, p: R() * 6.28 }));
+function background(t, tint) {
+  X.fillStyle = COL.bg; X.fillRect(0, 0, W, H);
+  // slow radial wash, colour driven by scene mood
+  const g = X.createRadialGradient(W / 2, H * .45, 40, W / 2, H * .45, W * .8);
+  g.addColorStop(0, tint); g.addColorStop(1, 'rgba(4,6,12,0)');
+  X.fillStyle = g; X.fillRect(0, 0, W, H);
+  // perspective grid floor
+  X.save(); X.globalAlpha = .18;
+  const hz = H * .62, drift = (t * 18) % 60;
+  for (let i = 0; i < 14; i++) {
+    const y = hz + Math.pow((i * 60 + drift) / 840, 2) * (H - hz) * 1.6;
+    line(0, y, W, y, COL.blue, 1, clamp((y - hz) / 300));
+  }
+  for (let i = -12; i <= 12; i++) line(W / 2 + i * 22, hz, W / 2 + i * 210, H, COL.blue, 1, .5);
+  X.restore();
+  // particles
+  for (const p of PARTS) {
+    const y = (p.y - t * p.v + H) % H;
+    circle(p.x + Math.sin(t * .6 + p.p) * 8, y, p.s, { fill: COL.cyan, alpha: .25 + .25 * Math.sin(t * 2 + p.p) });
+  }
+  // vignette
+  const v = X.createRadialGradient(W / 2, H / 2, W * .35, W / 2, H / 2, W * .78);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.75)');
+  X.fillStyle = v; X.fillRect(0, 0, W, H);
+}
+
+// ---------- scene 1 : not GPUs, not cooling, not construction — power (0 – 5.0) ----------
+function scene1(t) {
+  const a = win(t, 0, 5.0, .5, .5);
+  if (a <= 0) return;
+  X.save(); X.globalAlpha = a;
+  kicker('UK AI DATA CENTRES', 190, easeOut(prog(t, .1, .8)));
+  const items = [['GPUs', .35], ['COOLING', 1.05], ['CONSTRUCTION', 1.75]];
+  items.forEach(([w, at], i) => {
+    const k = easeOut(prog(t, at, at + .5));
+    const y = 330 + i * 110;
+    const fade = 1 - .6 * prog(t, 3.3, 3.8);
+    text(w, W / 2, y + (1 - k) * 30, { size: 78, weight: 800, color: COL.dim, alpha: k * fade, spacing: 2 });
+    const sw = measure(w, 78, 800, 2) + 40;
+    const s = easeInOut(prog(t, at + .55, at + .95));
+    if (s > 0) line(W / 2 - sw / 2, y + 2, W / 2 - sw / 2 + sw * s, y + 2, COL.red, 7, fade, 18);
+  });
+  // POWER
+  const p = prog(t, 3.45, 4.0);
+  if (p > 0) {
+    const sc = lerp(1.35, 1, easeOut(p));
+    const pulse = 1 + .04 * Math.sin((t - 3.45) * 14) * Math.exp(-(t - 3.45) * 3);
+    X.save(); X.translate(W / 2, 760); X.scale(sc * pulse, sc * pulse);
+    text("IT'S", 0, -62, { size: 30, weight: 600, color: COL.ink, alpha: easeOut(p), spacing: 8 });
+    text('POWER.', 0, 18, { size: 150, weight: 900, color: COL.cyan, alpha: easeOut(p), glow: 50 * (1.4 - p * .6), spacing: 4 });
+    X.restore();
+    // electric arc sweeping under the word
+    const ar = rand(Math.floor(t * 24));
+    X.save(); X.globalAlpha = .9 * (1 - prog(t, 3.6, 4.6)); X.strokeStyle = COL.cyan; X.lineWidth = 2.5;
+    X.shadowColor = COL.cyan; X.shadowBlur = 20; X.beginPath(); X.moveTo(220, 860);
+    for (let x = 220; x <= 860; x += 32) X.lineTo(x, 860 + (ar() - .5) * 40);
+    X.stroke(); X.restore();
+  }
+  X.restore();
+}
+
+// ---------- scene 2 : Loughton, 90 MW, grid gap (4.7 – 11.6) ----------
+function pylon(x, y, s, alpha) {
+  X.save(); X.globalAlpha *= alpha; X.strokeStyle = COL.dim; X.lineWidth = 2.5; X.translate(x, y); X.scale(s, s);
+  X.beginPath();
+  X.moveTo(-26, 0); X.lineTo(-6, -120); X.lineTo(6, -120); X.lineTo(26, 0);
+  X.moveTo(-36, -92); X.lineTo(36, -92); X.moveTo(-28, -64); X.lineTo(28, -64);
+  X.moveTo(-20, -30); X.lineTo(14, -64); X.moveTo(20, -30); X.lineTo(-14, -64);
+  X.moveTo(-6, -120); X.lineTo(0, -140); X.lineTo(6, -120);
+  X.stroke(); X.restore();
+}
+function campus(x, y, alpha, lit) {
+  X.save(); X.globalAlpha *= alpha;
+  // isometric-ish hall blocks
+  const blocks = [[0, 0, 190, 120], [-40, 50, 150, 90], [130, 60, 120, 80]];
+  blocks.forEach(([bx, by, bw, bh], i) => {
+    rrect(x + bx - bw / 2, y + by - bh, bw, bh, 6, { fill: 'rgba(20,30,52,.92)', stroke: lit > 0 ? COL.cyan : COL.faint, lw: 1.5, glow: lit * 18 });
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) {
+      const on = ((r * 7 + c * 3 + i) % 5 !== 0) ? lit : 0;
+      rrect(x + bx - bw / 2 + 14 + c * ((bw - 28) / 6), y + by - bh + 16 + r * ((bh - 30) / 3), (bw - 28) / 6 - 6, 6, 2,
+        { fill: on > 0 ? COL.cyan : '#1b2540', alpha: on > 0 ? .4 + .6 * on : 1 });
+    }
+  });
+  X.restore();
+}
+function scene2(t) {
+  const a = win(t, 4.7, 11.6, .5, .5);
+  if (a <= 0) return;
+  X.save(); X.globalAlpha = a;
+  kicker('NSCALE · LOUGHTON AI CAMPUS · ESSEX', 120, easeOut(prog(t, 4.9, 5.5)));
+
+  // MW counter
+  const c = easeOut(prog(t, 5.2, 7.0));
+  text('UP TO', W / 2, 205, { size: 24, weight: 600, color: COL.dim, alpha: prog(t, 5.1, 5.5), spacing: 6 });
+  text(`${Math.round(90 * c)} MW`, W / 2, 285, { size: 120, weight: 900, color: COL.ink, alpha: prog(t, 5.1, 5.5), glow: 20 });
+
+  // grid → campus line (breaks before reaching campus)
+  const gy = 560, x0 = 150, x1 = 830, gapAt = 640;
+  pylon(x0, gy + 120, 1, prog(t, 5.3, 5.8)); pylon(370, gy + 120, .85, prog(t, 5.5, 6.0)); pylon(560, gy + 120, .75, prog(t, 5.7, 6.2));
+  text('NATIONAL GRID / DNO', x0, gy + 160, { size: 18, weight: 700, color: COL.dim, alpha: prog(t, 5.4, 6), spacing: 3 });
+  const draw = easeInOut(prog(t, 6.0, 7.6));
+  const reach = lerp(x0, gapAt, draw);
+  line(x0, gy, reach, gy, COL.cyan, 3, 1, 14);
+  // travelling energy packets
+  for (let i = 0; i < 4; i++) {
+    const ph = (((t * .9 + i / 4) % 1) + 1) % 1; const px = lerp(x0, reach, ph);
+    if (draw > .2) circle(px, gy, 5, { fill: '#fff', glow: 24, alpha: .9 });
+  }
+  // the gap
+  if (t > 7.6) {
+    const f = flick(t);
+    const k = easeBack(prog(t, 7.6, 8.0));
+    X.save(); X.translate((gapAt + 700) / 2, gy); X.scale(k, k);
+    line(-14, -14, 14, 14, COL.amber, 5, f, 20); line(-14, 14, 14, -14, COL.amber, 5, f, 20);
+    X.restore();
+    line(700, gy, x1 - 110, gy, COL.faint, 3, 1, 0, [6, 10]);
+  }
+  campus(x1, gy + 100, prog(t, 5.6, 6.2), 0);
+  text('90 MW AI CAMPUS', x1, gy + 160, { size: 18, weight: 700, color: COL.dim, alpha: prog(t, 5.8, 6.4), spacing: 3 });
+
+  // timeline 2026 → 2036
+  const ty = 860, tx0 = 140, tx1 = 940;
+  const tl = easeOut(prog(t, 8.0, 8.8));
+  const yx = y => lerp(tx0, tx1, (y - 2026) / 10);
+  X.save(); X.globalAlpha *= tl;
+  line(tx0, ty, tx1, ty, COL.dim, 2);
+  for (let y = 2026; y <= 2036; y += 2) {
+    line(yx(y), ty - 6, yx(y), ty + 6, COL.dim, 2);
+    text(String(y), yx(y), ty + 32, { size: 17, weight: 600, color: COL.dim });
+  }
+  // reported grid-availability band: early-to-mid 2030s
+  const band = easeInOut(prog(t, 9.0, 10.0));
+  rrect(yx(2030), ty - 16, (yx(2035) - yx(2030)) * band, 32, 6, { fill: 'rgba(255,176,32,.22)', stroke: COL.amber, lw: 1.5 });
+  text('GRID CAPACITY · EARLY–MID 2030s (REPORTED)', yx(2032.5), ty - 46, { size: 17, weight: 700, color: COL.amber, alpha: prog(t, 9.6, 10.1), spacing: 1.5 });
+  // original target
+  const tk = easeBack(prog(t, 8.4, 8.9));
+  circle(yx(2027), ty, 9 * tk, { fill: COL.cyan, glow: 20 });
+  text('ORIGINAL TARGET 2027', yx(2027) + 8, ty - 46, { size: 17, weight: 700, color: COL.cyan, alpha: prog(t, 8.6, 9.1), spacing: 1.5 });
+  X.restore();
+  X.restore();
+}
+
+// ---------- scene 3 : everything done… except power (11.3 – 16.0) ----------
+function scene3(t) {
+  const a = win(t, 11.3, 16.0, .5, .5);
+  if (a <= 0) return;
+  X.save(); X.globalAlpha = a;
+  kicker('A PROJECT CAN BE', 210, easeOut(prog(t, 11.5, 12.0)), COL.dim);
+  const items = ['Designed', 'Procured', 'Under construction', 'Mechanically complete'];
+  items.forEach((w, i) => {
+    const at = 11.8 + i * .55, k = easeOut(prog(t, at, at + .45)), y = 320 + i * 92;
+    const bx = 300;
+    circle(bx, y, 22 * easeBack(k), { stroke: COL.green, w: 3, glow: 12 });
+    if (k > .4) {
+      X.save(); X.globalAlpha *= prog(k, .4, 1); X.strokeStyle = COL.green; X.lineWidth = 4; X.lineCap = 'round';
+      X.beginPath(); X.moveTo(bx - 9, y + 1); X.lineTo(bx - 2, y + 8); X.lineTo(bx + 10, y - 8); X.stroke(); X.restore();
+    }
+    text(w, bx + 52, y + (1 - k) * 18, { size: 50, weight: 700, color: COL.ink, align: 'left', alpha: k });
+  });
+  const k = prog(t, 14.2, 14.7);
+  text('…and still not energised.', W / 2, 760, { size: 56, weight: 800, color: COL.amber, alpha: k * flick(t * .6 + 3), glow: 24 });
+  X.restore();
+}
+
+// ---------- scene 4 : the commissioning chain stalls (15.7 – 23.6) ----------
+const STEPS = ['Mechanical Completion', 'First Permanent Power', 'Electrical Commissioning', 'Integrated Systems Testing', 'IT Load', 'Operational Capacity'];
+function scene4(t) {
+  const a = win(t, 15.7, 23.6, .5, .5);
+  if (a <= 0) return;
+  X.save(); X.globalAlpha = a;
+  kicker('THE COMMISSIONING CRITICAL PATH', 110, easeOut(prog(t, 15.8, 16.4)));
+  const x = 230, y0 = 210, dy = 128;
+  const stallT = 17.6;
+  STEPS.forEach((s, i) => {
+    const y = y0 + i * dy;
+    const appear = easeOut(prog(t, 16.0 + i * .12, 16.4 + i * .12));
+    // connector
+    if (i < STEPS.length - 1) {
+      line(x, y + 30, x, y + dy - 30, COL.faint, 3, appear);
+      if (i === 0) { // energy flows from MC to First Power, then stops
+        const f = easeInOut(prog(t, 16.8, stallT));
+        line(x, y + 30, x, lerp(y + 30, y + dy - 30, f), COL.cyan, 3, 1, 14);
+      }
+    }
+    let ring = COL.faint, fill = 'rgba(14,20,36,.95)', lbl = COL.dim, glow = 0, alpha = appear;
+    if (i === 0 && t > 16.6) { ring = COL.green; lbl = COL.ink; glow = 14; }
+    if (i === 1 && t > stallT) { const f = flick(t); ring = COL.amber; lbl = COL.amber; glow = 28 * f; }
+    if (i >= 2 && t > stallT + .3) alpha *= lerp(1, .35, prog(t, stallT + .3, stallT + 1));
+    circle(x, y, 28, { fill, stroke: ring, w: 3, glow, alpha });
+    text(String(i + 1), x, y + 1, { size: 22, weight: 800, color: ring === COL.faint ? COL.dim : ring, alpha });
+    text(s, x + 60, y, { size: 34, weight: i === 1 ? 800 : 600, color: lbl, align: 'left', alpha });
+    // lock for blocked downstream steps
+    if (i >= 2 && t > stallT + .6) {
+      const k = easeOut(prog(t, stallT + .6 + (i - 2) * .1, stallT + 1 + (i - 2) * .1));
+      text('WAITING ON POWER', 990, y, { size: 15, weight: 700, color: COL.dim, align: 'right', alpha: k * .9, spacing: 2 });
+    }
+  });
+  // milestone badge on step 2
+  const b = easeBack(prog(t, stallT + .5, stallT + 1));
+  if (b > 0) {
+    const y = y0 + dy + 46;
+    X.save(); X.translate(x + 60, y); X.scale(b, b);
+    rrect(0, -18, 470, 36, 18, { fill: 'rgba(255,176,32,.14)', stroke: COL.amber, lw: 1.5 });
+    text('UTILITY ENERGISATION = FORMAL MILESTONE', 235, 1, { size: 16, weight: 800, color: COL.amber, spacing: 1.5 });
+    X.restore();
+  }
+  // outside-project-control bracket
+  const o = easeOut(prog(t, 20.2, 20.9));
+  if (o > 0) {
+    const y = y0 + dy;
+    rrect(x - 60, y - 52, 800 * o, 136, 14, { stroke: COL.amber, lw: 1.5, dash: [8, 8], alpha: .8 });
+    text('EXTERNAL TRANSMISSION WORKS · OUTSIDE PROJECT CONTROL', x + 730, y - 72, { size: 15, weight: 700, color: COL.amber, align: 'right', alpha: o, spacing: 1.5 });
+  }
+  X.restore();
+}
+
+// ---------- scene 5 : design responses (23.3 – 27.8) ----------
+function scene5(t) {
+  const a = win(t, 23.3, 27.8, .5, .5);
+  if (a <= 0) return;
+  X.save(); X.globalAlpha = a;
+  kicker('DESIGN FOR GRID UNCERTAINTY', 180, easeOut(prog(t, 23.4, 24.0)));
+  const cards = [
+    ['Staged', 'energisation', 23.7, drawStaged],
+    ['Onsite', 'generation', 24.5, drawGen],
+    ['Flexible power', 'architecture', 25.3, drawFlex],
+  ];
+  cards.forEach(([l1, l2, at, icon], i) => {
+    const k = easeOut(prog(t, at, at + .5));
+    const cx = 200 + i * 340, cy = 520 + (1 - k) * 40;
+    rrect(cx - 150, cy - 210, 300, 420, 22, { fill: 'rgba(16,24,44,.85)', stroke: COL.faint, lw: 1.5, alpha: k });
+    rrect(cx - 150, cy - 210, 300, 4, 2, { fill: COL.cyan, alpha: k, glow: 14 });
+    X.save(); X.globalAlpha *= k; icon(cx, cy - 40, t - at); X.restore();
+    text(l1, cx, cy + 110, { size: 34, weight: 800, color: COL.ink, alpha: k });
+    text(l2, cx, cy + 152, { size: 30, weight: 500, color: COL.dim, alpha: k });
+  });
+  text('There is no single answer.', W / 2, 870, { size: 32, weight: 600, color: COL.dim, alpha: prog(t, 26.2, 26.7) });
+  X.restore();
+}
+function drawStaged(cx, cy, lt) {
+  const vals = [50, 70, 90]; // Nscale's announced 50 MW initial phase, scalable to 90 MW
+  vals.forEach((v, i) => {
+    const h = 120 * (v / 90) * easeOut(clamp((lt - .3 - i * .25) / .5));
+    rrect(cx - 85 + i * 60, cy + 60 - h, 44, h, 6, { fill: COL.cyan, alpha: .35 + i * .25, glow: 10 });
+    text(v + '', cx - 63 + i * 60, cy + 82, { size: 15, weight: 700, color: COL.dim });
+  });
+  text('MW', cx + 108, cy + 82, { size: 13, weight: 700, color: COL.dim });
+}
+function drawGen(cx, cy, lt) {
+  rrect(cx - 80, cy - 20, 160, 80, 10, { stroke: COL.cyan, lw: 2.5, glow: 10 });
+  for (let i = 0; i < 5; i++) line(cx - 60 + i * 20, cy, cx - 60 + i * 20, cy + 40, COL.cyan, 2, .6);
+  line(cx + 40, cy - 20, cx + 40, cy - 55, COL.cyan, 3);
+  for (let i = 0; i < 3; i++) { // exhaust/heat shimmer
+    const ph = (((lt * .8 + i / 3) % 1) + 1) % 1;
+    circle(cx + 40 + Math.sin(ph * 6) * 6, cy - 60 - ph * 50, 6 + ph * 8, { stroke: COL.dim, w: 1.5, alpha: 1 - ph });
+  }
+  const bolt = .6 + .4 * Math.sin(lt * 6);
+  X.save(); X.globalAlpha *= bolt; X.fillStyle = COL.amber; X.shadowColor = COL.amber; X.shadowBlur = 18;
+  X.beginPath(); X.moveTo(cx - 6, cy + 2); X.lineTo(cx - 22, cy + 26); X.lineTo(cx - 6, cy + 26); X.lineTo(cx - 14, cy + 50);
+  X.lineTo(cx + 12, cy + 18); X.lineTo(cx - 2, cy + 18); X.lineTo(cx + 8, cy + 2); X.closePath(); X.fill(); X.restore();
+}
+function drawFlex(cx, cy, lt) {
+  const srcs = [[-80, -50], [-80, 20], [-80, 90]], dst = [70, 20];
+  srcs.forEach(([sx, sy], i) => {
+    circle(cx + sx, cy + sy - 20, 12, { stroke: [COL.cyan, COL.amber, COL.green][i], w: 2.5 });
+    line(cx + sx + 12, cy + sy - 20, cx + dst[0] - 22, cy + dst[1] - 20, COL.faint, 2);
+    const ph = (((lt * .7 + i / 3) % 1) + 1) % 1;
+    circle(lerp(cx + sx + 12, cx + dst[0] - 22, ph), lerp(cy + sy - 20, cy + dst[1] - 20, ph), 4, { fill: '#fff', glow: 12 });
+  });
+  rrect(cx + dst[0] - 22, cy + dst[1] - 48, 50, 56, 8, { stroke: COL.cyan, lw: 2.5, glow: 12 });
+}
+
+// ---------- scene 6 : end card (27.5 – 30) ----------
+function scene6(t) {
+  const a = easeOut(prog(t, 27.5, 28.1));
+  if (a <= 0) return;
+  X.save(); X.globalAlpha = a;
+  const sweep = easeInOut(prog(t, 27.6, 28.6));
+  line(W / 2 - 360 * sweep, 330, W / 2 + 360 * sweep, 330, COL.cyan, 3, 1, 20);
+  text('Power availability', W / 2, 440, { size: 72, weight: 800, color: COL.ink, alpha: prog(t, 27.7, 28.2) });
+  text('is part of the', W / 2, 525, { size: 72, weight: 800, color: COL.ink, alpha: prog(t, 27.9, 28.4) });
+  text('commissioning', W / 2, 628, { size: 96, weight: 900, color: COL.cyan, alpha: prog(t, 28.1, 28.6), glow: 30 });
+  text('critical path.', W / 2, 730, { size: 96, weight: 900, color: COL.cyan, alpha: prog(t, 28.2, 28.7), glow: 30 });
+  text('Sources: The Guardian (24 Sep 2026) · TechRadar Pro (4 Oct 2026) · Nscale (13 Jan 2025)', W / 2, 980,
+    { size: 16, weight: 500, color: COL.dim, alpha: prog(t, 28.6, 29.1) });
+  X.restore();
+}
+
+// ---------- compose ----------
+function tint(t) {
+  if (t > 15.7 && t < 23.6) return 'rgba(255,140,30,.10)';
+  if (t > 4.7 && t < 11.6) return 'rgba(56,232,255,.08)';
+  return 'rgba(59,130,246,.12)';
+}
+window.render = function (t) {
+  t = clamp(t, 0, DUR);
+  X.setTransform(1, 0, 0, 1, 0, 0);
+  X.globalAlpha = 1;
+  background(t, tint(t));
+  scene1(t); scene2(t); scene3(t); scene4(t); scene5(t); scene6(t);
+  // brief white flash on the "POWER" hit and the stall
+  const flash = Math.max(Math.exp(-Math.pow((t - 3.5) * 14, 2)), .5 * Math.exp(-Math.pow((t - 17.6) * 14, 2)));
+  if (flash > .01) { X.fillStyle = `rgba(200,240,255,${flash * .35})`; X.fillRect(0, 0, W, H); }
+  // fade from / to black
+  const fb = Math.max(1 - prog(t, 0, .35), prog(t, 29.5, 30));
+  if (fb > 0) { X.fillStyle = `rgba(0,0,0,${fb})`; X.fillRect(0, 0, W, H); }
+};
+window.DURATION = DUR;
+
+// live playback when opened directly (render.mjs sets ?render to disable)
+if (!location.search.includes('render')) {
+  let start = null;
+  const loop = ts => { if (start === null) start = ts; render(((ts - start) / 1000) % DUR); requestAnimationFrame(loop); };
+  document.fonts.ready.then(() => requestAnimationFrame(loop));
+}
+</script>
+</body>
+</html>
