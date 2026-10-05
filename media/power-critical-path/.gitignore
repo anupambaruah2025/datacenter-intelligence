@@ -1,0 +1,7 @@
+build/audio/
+build/still_*.png
+build/f*.png
+build/c*.png
+build/contact.png
+build/video-silent.mp4
+node_modules
