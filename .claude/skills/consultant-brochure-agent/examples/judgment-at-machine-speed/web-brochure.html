@@ -1,0 +1,592 @@
+<title>Judgment at Machine Speed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&family=Mulish:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+/* Layout: a printed consulting brochure — two-page spreads on a lavender desk; each spread pairs a gradient "colour page" with a white text page. Single deliberate light look. */
+:root{
+  --desk:#A7A6E6;
+  --paper:#FFFFFF;
+  --mist:#F2EEF7;
+  --ink:#1D1430;
+  --muted:#685F7C;
+  --indigo:#2B1B6B;
+  --plum:#6E1F9C;
+  --magenta:#C81C7C;
+  --pink:#E34C86;
+  --rule:#E3DCEC;
+  --grad:linear-gradient(135deg,#2B1B6B 0%,#6E1F9C 48%,#D41F7E 100%);
+  --grad-soft:linear-gradient(160deg,#D41F7E 0%,#8E2AA5 55%,#3A2380 100%);
+  --grad-band:linear-gradient(90deg,#B5217F 0%,#E5679B 100%);
+  --display:"Jost","Futura","Century Gothic","Avenir Next",system-ui,sans-serif;
+  --body:"Mulish","Avenir Next","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{background:var(--desk)}
+body{color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;padding-block:40px 64px;padding-inline:clamp(16px,4vw,48px)}
+.book{max-width:1180px;margin:0 auto;display:grid;gap:44px}
+.spread{display:grid;grid-template-columns:1fr 1fr;background:var(--paper);box-shadow:0 22px 50px -24px rgba(43,27,107,.55);position:relative}
+.spread::after{content:"";position:absolute;top:0;bottom:0;left:50%;width:44px;transform:translateX(-50%);background:linear-gradient(90deg,transparent,rgba(43,27,107,.07) 50%,transparent);pointer-events:none}
+.page{position:relative;padding:56px 52px 64px;min-width:0;display:flex;flex-direction:column;gap:22px}
+.page.color{background:var(--grad);color:#fff}
+.page.color.soft{background:var(--grad-soft)}
+.page.tint{background:var(--mist)}
+.folio{position:absolute;top:20px;font:500 10.5px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.folio.l{left:52px}.folio.r{right:52px}
+.color .folio{color:rgba(255,255,255,.75)}
+.page::after{content:"Anupam Baruah";position:absolute;top:20px;font:500 10.5px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.spread>.page:first-child::after{right:52px}
+.spread>.page:last-child::after{left:52px}
+.page.color::after{color:rgba(255,255,255,.75)}
+.foot{position:absolute;bottom:22px;font:500 11px/1 var(--display);letter-spacing:.08em;color:var(--muted)}
+.foot.l{left:52px}.foot.r{right:52px}
+.color .foot{color:rgba(255,255,255,.75)}
+h1,h2,h3,h4{font-family:var(--display);margin:0;text-wrap:balance}
+h1{font-weight:500;font-size:clamp(40px,5.4vw,68px);line-height:.98;letter-spacing:.01em;text-transform:uppercase}
+h2{font-weight:500;font-size:clamp(28px,3.4vw,40px);line-height:1.05;text-transform:uppercase;letter-spacing:.02em}
+h3{font-weight:600;font-size:18px;line-height:1.25}
+h4{font-weight:600;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--magenta)}
+.color h4{color:#FFC4DD}
+p{margin:0;max-width:62ch}
+.lead{font-size:17px;line-height:1.55}
+.color .lead{color:rgba(255,255,255,.92)}
+.small{font-size:13px;color:var(--muted)}
+.color .small{color:rgba(255,255,255,.78)}
+.kicker{font:600 11px/1 var(--display);letter-spacing:.22em;text-transform:uppercase;color:var(--magenta)}
+.color .kicker{color:#FFC4DD}
+strong{font-weight:700}
+a{color:var(--plum)}
+a:focus-visible{outline:2px solid var(--magenta);outline-offset:2px}
+
+/* ring motif from the reference */
+.ring{width:150px;height:150px;border-radius:50%;position:relative;display:grid;place-items:center;flex:none}
+.ring::before{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(from 0deg,currentColor 0 1.2deg,transparent 1.2deg 5deg);-webkit-mask:radial-gradient(circle,transparent 60%,#000 61%,#000 74%,transparent 75%);mask:radial-gradient(circle,transparent 60%,#000 61%,#000 74%,transparent 75%);opacity:.75}
+.ring::after{content:"";position:absolute;inset:16%;border-radius:50%;border:1.5px solid currentColor;opacity:.5}
+.ring b{font:500 34px/1 var(--display);position:relative}
+.ring small{display:block;font:500 10px/1.3 var(--display);letter-spacing:.14em;text-transform:uppercase;text-align:center;opacity:.85;margin-top:4px}
+.ring.pink{color:var(--magenta)}
+
+/* abstract "photo" panels: duotone architecture */
+.art{position:relative;min-height:230px;overflow:hidden;background:var(--grad);border-radius:2px}
+.art.lines::before{content:"";position:absolute;inset:-40%;background:repeating-linear-gradient(115deg,rgba(255,255,255,.16) 0 2px,transparent 2px 26px);transform:perspective(500px) rotateX(48deg)}
+.art.lines::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 120%,rgba(0,0,0,.45),transparent 60%)}
+.art.tower::before{content:"";position:absolute;left:18%;right:18%;top:12%;bottom:-10%;background:repeating-linear-gradient(90deg,rgba(255,255,255,.28) 0 2px,transparent 2px 18px),repeating-linear-gradient(0deg,rgba(255,255,255,.22) 0 2px,transparent 2px 14px);transform:perspective(420px) rotateY(-22deg);border-left:2px solid rgba(255,255,255,.5)}
+.art.arcs::before{content:"";position:absolute;width:520px;height:520px;right:-180px;bottom:-260px;border-radius:50%;background:repeating-radial-gradient(circle,rgba(255,255,255,.22) 0 2px,transparent 2px 22px)}
+.art .overlay{position:absolute;left:22px;bottom:20px;right:22px;color:#fff;z-index:1}
+.art .overlay b{font:500 56px/1 var(--display);display:block}
+.art .overlay span{font:500 12px/1.4 var(--display);letter-spacing:.12em;text-transform:uppercase}
+
+/* contents */
+.toc{display:grid;grid-template-columns:1fr 1fr;gap:20px 28px;margin-top:auto}
+.toc div{display:grid;gap:2px}
+.toc b{font:500 30px/1 var(--display);color:#FFC4DD}
+.toc span{font:600 14px/1.3 var(--display);letter-spacing:.02em}
+.band{background:var(--grad-band);color:#fff;font:500 22px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;padding:22px 26px;margin:auto -52px -64px;text-align:right}
+
+/* number tiles (467-style) */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.tile{display:grid;gap:8px}
+.tile .sq{aspect-ratio:1.25;max-width:100%;background:var(--grad);position:relative;overflow:hidden;color:#fff;padding:14px 16px;display:flex;justify-content:flex-end;align-items:flex-start}
+.tile .sq::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.08) 0 2px,transparent 2px 16px)}
+.tile:nth-child(2) .sq{background:var(--grad-soft)}
+.tile:nth-child(3) .sq{background:linear-gradient(135deg,#6E1F9C,#2B1B6B)}
+.tile:nth-child(4) .sq{background:linear-gradient(135deg,#D41F7E,#6E1F9C)}
+.tile .sq b{font:500 46px/1 var(--display);position:relative}
+.tile .sq b sup{font-size:20px;vertical-align:top;margin-left:2px}
+.tile h3{font-size:15px}
+.tile p{font-size:13px;color:var(--muted)}
+
+/* donuts */
+.donuts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center}
+.donut svg{width:100%;max-width:120px;height:auto;display:block;margin:0 auto 8px}
+.donut p{font-size:12.5px;color:var(--muted);margin:0 auto;max-width:18ch}
+.color .donut p{color:rgba(255,255,255,.85)}
+
+/* findings / numbered lists */
+.nlist{display:grid;gap:16px;counter-reset:n}
+.nlist li{list-style:none;display:grid;grid-template-columns:52px 1fr;gap:14px;align-items:start}
+.nlist{padding:0;margin:0}
+.nlist .n{font:500 34px/1 var(--display);color:var(--magenta)}
+.color .nlist .n{color:#FFC4DD}
+.nlist h3{font-size:16px;margin-bottom:3px}
+.nlist p{font-size:13.5px}
+
+/* service cards (three vertical gradient cards) */
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.card{background:var(--grad);color:#fff;padding:34px 16px 18px;position:relative;display:grid;gap:8px;align-content:start}
+.card:nth-child(2){background:var(--grad-soft)}
+.card:nth-child(3){background:linear-gradient(160deg,#E34C86,#8E2AA5)}
+.card .badge{position:absolute;top:-16px;left:16px;width:32px;height:32px;border-radius:50%;background:#fff;color:var(--magenta);display:grid;place-items:center;font:600 13px/1 var(--display);box-shadow:0 4px 10px rgba(43,27,107,.25)}
+.card h3{font-size:15px}
+.card p{font-size:12.5px;line-height:1.5;color:rgba(255,255,255,.9)}
+.card .tag{font:600 10px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:#FFC4DD}
+
+/* grey numbered blocks (01 02 03 04) */
+.blocks{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.block{background:var(--mist);padding:16px 16px 18px;display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start}
+.block .n{font:500 34px/1 var(--display);color:var(--magenta)}
+.block h3{font-size:14.5px;margin-bottom:4px}
+.block p{font-size:12.5px;color:var(--muted);line-height:1.5}
+
+/* check bullets */
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;padding:0;margin:0}
+.checks li{list-style:none;display:grid;grid-template-columns:24px 1fr;gap:10px;font-size:13px;line-height:1.45}
+.checks li::before{content:"";width:22px;height:22px;border-radius:50%;background:var(--indigo) radial-gradient(circle,#fff 0 3px,transparent 3.5px);margin-top:1px}
+.checks b{display:block;font-family:var(--display);font-weight:600;font-size:13.5px}
+
+/* tables */
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font:600 10.5px/1.3 var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--magenta);text-align:left;padding:8px 10px;border-bottom:2px solid var(--magenta)}
+td{padding:10px;border-bottom:1px solid var(--rule);vertical-align:top}
+td:first-child{font-family:var(--display);font-weight:600}
+.pill{display:inline-block;font:600 10px/1 var(--display);letter-spacing:.1em;text-transform:uppercase;padding:5px 8px;border-radius:20px;white-space:nowrap}
+.pill.ok{background:#E7F4EC;color:#1F6B3F}
+.pill.mid{background:#FFF1DE;color:#8A4B00}
+.pill.chk{background:#FCE4EF;color:#A3165F}
+.pill.view{background:#ECE8F7;color:#45338F}
+
+/* 2x2 */
+.matrix{display:grid;grid-template-columns:26px 1fr 1fr;grid-template-rows:1fr 1fr auto;gap:8px}
+.matrix .yax{grid-row:1/3;writing-mode:vertical-rl;transform:rotate(180deg);font:600 10.5px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:center}
+.matrix .xax{grid-column:2/4;font:600 10.5px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between}
+.q{padding:14px;background:var(--mist);min-height:110px}
+.q h3{font-size:14.5px;margin-bottom:4px}
+.q p{font-size:12.5px;color:var(--muted);line-height:1.45}
+.q.hot{background:var(--grad);color:#fff}
+.q.hot p{color:rgba(255,255,255,.9)}
+
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(3,1fr);gap:0;position:relative}
+.phase{padding:18px 16px 22px;color:#fff;display:grid;gap:6px;align-content:start}
+.phase:nth-child(1){background:#3A2380}
+.phase:nth-child(2){background:#7A2399}
+.phase:nth-child(3){background:#C81C7C}
+.phase .when{font:600 10.5px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:#FFC4DD}
+.phase h3{font-size:20px}
+.phase ul{margin:4px 0 0;padding-left:16px;font-size:12.5px;line-height:1.5;color:rgba(255,255,255,.92)}
+.gates{display:grid;grid-template-columns:repeat(3,1fr);margin-top:10px}
+.gate{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--muted);padding-right:10px}
+.gate i{width:14px;height:14px;transform:rotate(45deg);background:var(--magenta);flex:none;margin-top:3px}
+.gate b{color:var(--ink);font-family:var(--display)}
+
+.quote{font:400 22px/1.35 var(--display);border-left:3px solid #FFC4DD;padding-left:18px}
+.page.tint .quote{border-color:var(--magenta);color:var(--indigo)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px}
+.sources{columns:2;column-gap:28px;font-size:12px;line-height:1.5;padding:0;margin:0}
+.sources li{list-style:none;break-inside:avoid;margin-bottom:8px}
+.sources b{font-family:var(--display);font-weight:600;color:var(--magenta);display:block;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;margin-top:6px}
+
+@media (max-width:860px){
+  .spread{grid-template-columns:1fr}
+  .spread::after{display:none}
+  .page{padding:48px 22px 56px}
+  .folio.l,.foot.l{left:22px}.folio.r,.foot.r{right:22px}
+  .spread>.page:first-child::after{right:22px}
+  .spread>.page:last-child::after{left:22px}
+  .band{margin:auto -22px -56px}
+}
+@media (max-width:520px){
+  .tiles,.blocks,.checks,.split,.toc{grid-template-columns:1fr}
+  .cards,.road,.gates{grid-template-columns:1fr}
+  .cards{gap:26px}
+  .sources{columns:1}
+  .page::after{top:36px}
+  .spread>.page:first-child::after,.spread>.page:last-child::after{left:22px;right:auto}
+  .matrix{grid-template-columns:22px 1fr 1fr}
+}
+</style>
+
+<main class="book">
+
+<!-- SPREAD 1: cover + contents -->
+<section class="spread" aria-label="Cover">
+  <div class="page color">
+    <span class="folio l">Leadership briefing · October 2026</span>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-top:24px">
+      <h1>Judgment<br>at Machine<br>Speed</h1>
+      <div class="ring"><div><b>66%</b><small>rely without<br>checking</small></div></div>
+    </div>
+    <p class="lead">Cultivating critical thinking and human judgment in the AI-augmented enterprise.</p>
+    <div class="toc" aria-label="Contents">
+      <div><b>01</b><span>The situation</span></div>
+      <div><b>05</b><span>The judgment operating model</span></div>
+      <div><b>02</b><span>Why people stop checking</span></div>
+      <div><b>06</b><span>Leadership imperatives</span></div>
+      <div><b>03</b><span>Shadow AI</span></div>
+      <div><b>07</b><span>Roadmap and scorecard</span></div>
+      <div><b>04</b><span>Psychological safety</span></div>
+      <div><b>08</b><span>Evidence and caveats</span></div>
+    </div>
+    <span class="foot l">Contents</span>
+  </div>
+  <div class="page">
+    <span class="folio r">Judgment at Machine Speed</span>
+    <span class="kicker" style="margin-top:24px">Executive summary</span>
+    <h2 style="color:var(--indigo)">Content is cheap. Judgment is scarce.</h2>
+    <p class="lead"><strong>Generative AI has moved the constraint on enterprise value.</strong> The question is no longer how fast teams can produce, but how well they can evaluate what they produce.</p>
+    <p>Most organizations deployed AI faster than they built the habits, controls and culture to scrutinize it. The result is a hidden risk position: errors embedded in deliverables, sensitive data flowing into unmanaged tools, and a workforce that distrusts AI yet depends on it.</p>
+    <div class="art lines" style="min-height:200px"><div class="overlay"><b>58%</b><span>of employees use AI at work regularly</span></div></div>
+    <p class="small">The goal is not frictionless automation. It is the right friction in the right places: machine speed where errors are cheap, human scrutiny where they are not.</p>
+    <div class="band">Introduction</div>
+  </div>
+</section>
+
+<!-- SPREAD 2: findings + actions -->
+<section class="spread" aria-label="Key findings">
+  <div class="page color soft">
+    <span class="folio l">page 02</span>
+    <span class="kicker" style="margin-top:24px">Five findings</span>
+    <ol class="nlist">
+      <li><span class="n">01</span><div><h3>Adoption has outrun scrutiny</h3><p>58% use AI regularly; 66% rely on outputs without checking accuracy; 56% report mistakes as a result.</p></div></li>
+      <li><span class="n">02</span><div><h3>The failure is cognitive, not careless</h3><p>Automation bias and fluency bias are predictable responses to confident, polished output. Expertise does not reliably protect.</p></div></li>
+      <li><span class="n">03</span><div><h3>Shadow AI signals friction, not defiance</h3><p>57% conceal AI use and roughly half contravene policy. Bans push it further out of sight.</p></div></li>
+      <li><span class="n">04</span><div><h3>Psychological safety is the control layer</h3><p>People who fear looking replaceable will neither disclose AI use nor challenge a confident machine.</p></div></li>
+      <li><span class="n">05</span><div><h3>Judgment can be engineered</h3><p>Assumption mapping, red teaming, adversarial prompting and risk tiering turn scepticism into a team routine.</p></div></li>
+    </ol>
+    <span class="foot l">Key findings</span>
+  </div>
+  <div class="page">
+    <span class="folio r">page 03</span>
+    <span class="kicker" style="margin-top:24px">What leaders should do</span>
+    <h2 style="color:var(--indigo)">Five priorities</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Action</th><th>Horizon</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Run a 30-day AI amnesty to surface shadow usage, then license secure alternatives</td><td>0–30 days</td></tr>
+          <tr><td>2</td><td>Tier AI-assisted work by risk and set minimum human-review standards per tier</td><td>0–60 days</td></tr>
+          <tr><td>3</td><td>Embed assumption mapping and red-team review into high-stakes decision gates</td><td>30–90 days</td></tr>
+          <tr><td>4</td><td>Train for bias awareness and verification, not just prompting</td><td>30–120 days</td></tr>
+          <tr><td>5</td><td>Hold managers accountable for psychological safety and for reinvesting time saved</td><td>60–180 days</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="art tower" style="min-height:190px"><div class="overlay"><b>180</b><span>days to embed judgment controls</span></div></div>
+  </div>
+</section>
+
+<!-- SPREAD 3: situation -->
+<section class="spread" aria-label="The situation">
+  <div class="page color">
+    <span class="folio l">page 04</span>
+    <span class="kicker" style="margin-top:24px">01 · The situation</span>
+    <h2>Adoption has outrun scrutiny</h2>
+    <p class="lead">AI is now embedded in core work, but the verification habits needed to use it safely are not. The gap between use and scrutiny is where enterprise risk accumulates.</p>
+    <p class="small">The benefits are real. Among employees using AI:</p>
+    <div class="donuts">
+      <div class="donut"><svg viewBox="0 0 100 100" role="img" aria-label="67% report higher efficiency"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="10"/><circle cx="50" cy="50" r="40" fill="none" stroke="#fff" stroke-width="10" stroke-dasharray="168.4 251.3" transform="rotate(-90 50 50)"/><text x="50" y="56" text-anchor="middle" fill="#fff" font-family="Jost,sans-serif" font-size="18" font-weight="600">67%</text></svg><p>higher efficiency</p></div>
+      <div class="donut"><svg viewBox="0 0 100 100" role="img" aria-label="61% report better access to information"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="10"/><circle cx="50" cy="50" r="40" fill="none" stroke="#fff" stroke-width="10" stroke-dasharray="153.3 251.3" transform="rotate(-90 50 50)"/><text x="50" y="56" text-anchor="middle" fill="#fff" font-family="Jost,sans-serif" font-size="18" font-weight="600">61%</text></svg><p>better access to information</p></div>
+      <div class="donut"><svg viewBox="0 0 100 100" role="img" aria-label="58% report better work quality"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="10"/><circle cx="50" cy="50" r="40" fill="none" stroke="#fff" stroke-width="10" stroke-dasharray="145.8 251.3" transform="rotate(-90 50 50)"/><text x="50" y="56" text-anchor="middle" fill="#fff" font-family="Jost,sans-serif" font-size="18" font-weight="600">58%</text></svg><p>better work quality</p></div>
+    </div>
+    <p class="quote">The problem is not use. It is how outputs are handled once they arrive.</p>
+    <span class="foot l">Source: KPMG &amp; University of Melbourne, 47 countries, 2025</span>
+  </div>
+  <div class="page">
+    <span class="folio r">page 05</span>
+    <span class="kicker" style="margin-top:24px">How outputs are handled</span>
+    <div class="tiles">
+      <div class="tile"><div class="sq"><b>66<sup>%</sup></b></div><h3>Rely without checking</h3><p>Use AI output without evaluating its accuracy.</p></div>
+      <div class="tile"><div class="sq"><b>57<sup>%</sup></b></div><h3>Conceal their use</h3><p>Present AI-generated work as their own.</p></div>
+      <div class="tile"><div class="sq"><b>56<sup>%</sup></b></div><h3>Made mistakes</h3><p>Errors in their work caused by unverified AI output.</p></div>
+      <div class="tile"><div class="sq"><b>44<sup>%</sup></b></div><h3>Break policy</h3><p>Use AI in ways that contravene company policy (44–53% by behaviour).</p></div>
+    </div>
+    <p class="small">High usage, low checking and frequent concealment are each manageable. Together they mean leadership often cannot see where AI is shaping decisions, or how often it is wrong.</p>
+  </div>
+</section>
+
+<!-- SPREAD 4: economies + trust -->
+<section class="spread" aria-label="Economies and trust">
+  <div class="page">
+    <span class="folio l">page 06</span>
+    <span class="kicker" style="margin-top:24px">Adoption by economy</span>
+    <h3 style="font-size:22px;color:var(--indigo)">Emerging economies use more, train more and worry less</h3>
+    <div class="chart">
+      <svg viewBox="0 0 520 250" role="img" aria-label="Grouped bars comparing emerging and advanced economies on AI use, training, wariness and acceptance">
+        <g stroke="#E3DCEC" stroke-width="1">
+          <line x1="50" x2="500" y1="30" y2="30"/><line x1="50" x2="500" y1="75" y2="75"/><line x1="50" x2="500" y1="120" y2="120"/><line x1="50" x2="500" y1="165" y2="165"/>
+        </g>
+        <line x1="50" x2="500" y1="210" y2="210" stroke="#685F7C" stroke-width="1"/>
+        <g font-family="Jost,sans-serif" font-size="11" fill="#685F7C" text-anchor="end">
+          <text x="42" y="34">100%</text><text x="42" y="79">75%</text><text x="42" y="124">50%</text><text x="42" y="169">25%</text><text x="42" y="214">0</text>
+        </g>
+        <g>
+          <rect x="73.25" y="66" width="30" height="144" fill="#C81C7C"/><rect x="109.25" y="105.6" width="30" height="104.4" fill="#2B1B6B"/>
+          <rect x="185.75" y="120" width="30" height="90" fill="#C81C7C"/><rect x="221.75" y="152.4" width="30" height="57.6" fill="#2B1B6B"/>
+          <rect x="298.25" y="132.6" width="30" height="77.4" fill="#C81C7C"/><rect x="334.25" y="100.2" width="30" height="109.8" fill="#2B1B6B"/>
+          <rect x="410.75" y="58.8" width="30" height="151.2" fill="#C81C7C"/><rect x="446.75" y="93" width="30" height="117" fill="#2B1B6B"/>
+        </g>
+        <g font-family="Jost,sans-serif" font-size="12" font-weight="600" text-anchor="middle" fill="#1D1430">
+          <text x="88.25" y="60">80</text><text x="124.25" y="99.6">58</text>
+          <text x="200.75" y="114">50</text><text x="236.75" y="146.4">32</text>
+          <text x="313.25" y="126.6">43</text><text x="349.25" y="94.2">61</text>
+          <text x="425.75" y="52.8">84</text><text x="461.75" y="87">65</text>
+        </g>
+        <g font-family="Jost,sans-serif" font-size="12" text-anchor="middle" fill="#1D1430">
+          <text x="106.25" y="232">Use AI at work</text><text x="218.75" y="232">Received training</text><text x="331.25" y="232">Wary of trusting AI</text><text x="443.75" y="232">Accept AI</text>
+        </g>
+      </svg>
+    </div>
+    <div class="legend"><span><i style="background:#C81C7C"></i>Emerging economies</span><span><i style="background:#2B1B6B"></i>Advanced economies</span></div>
+    <p>Advanced economies are more sceptical but less trained: caution without capability. That tends to produce informal, ungoverned use rather than less use.</p>
+  </div>
+  <div class="page color soft">
+    <span class="folio r">page 07</span>
+    <span class="kicker" style="margin-top:24px">The trust paradox</span>
+    <h2>Wary of the tool, dependent on it</h2>
+    <div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap">
+      <div class="ring"><div><b>38%</b><small>fall in GenAI<br>trust</small></div></div>
+      <p class="lead" style="flex:1;min-width:200px">Deloitte's TrustID research reports a sharp drop in corporate workers' trust in generative AI between May and July 2025, as people moved from experiments to high-stakes tasks and met the tools' limits.</p>
+    </div>
+    <p>Fewer than half of users have been trained in responsible use. Falling trust has not produced better checking. It has produced a workforce that doubts AI but relies on it to hit productivity targets. That is the most dangerous combination: the doubt is felt but not acted on.</p>
+    <div class="art arcs" style="min-height:170px;background:rgba(255,255,255,.08)"><div class="overlay"><b>&lt;50%</b><span>of GenAI users trained in responsible use</span></div></div>
+    <span class="foot r">Figure to verify before external use; see page 18</span>
+  </div>
+</section>
+
+<!-- SPREAD 5: diagnosis -->
+<section class="spread" aria-label="Diagnosis">
+  <div class="page color">
+    <span class="folio l">page 08</span>
+    <span class="kicker" style="margin-top:24px">02 · Diagnosis</span>
+    <h2>Why capable people stop checking</h2>
+    <p class="lead">Poor scrutiny of AI output is a predictable product of human cognition, not negligence. Reminders and warnings underperform because they do not address the mechanism.</p>
+    <div class="art lines" style="min-height:180px;background:rgba(255,255,255,.06)"><div class="overlay"><b>&lt;½</b><span>correct answers with faulty AI support vs. no AI (Reutlingen)</span></div></div>
+    <p class="quote">Telling people the AI may be wrong helps. It does not return performance to the unassisted level.</p>
+  </div>
+  <div class="page">
+    <span class="folio r">page 09</span>
+    <span class="kicker" style="margin-top:24px">Three failure modes</span>
+    <div class="cards" style="margin-top:12px">
+      <div class="card"><span class="badge">A</span><span class="tag">Automation bias</span><h3>Deferring to the machine</h3><p>Faulty AI support more than halved correct answers. A warning nudge helped but did not restore baseline. Self-rated AI literacy gave no protection.</p></div>
+      <div class="card"><span class="badge">B</span><span class="tag">Fluency bias</span><h3>The confidence illusion</h3><p>Polished prose reads as evidence. In HBS research, experts and novices were equally persuaded by incorrect AI narratives.</p></div>
+      <div class="card"><span class="badge">C</span><span class="tag">AI gravity</span><h3>Cognitive debt</h3><p>Constant pressure to offload thinking erodes the very skills needed to evaluate the output (MIT Sloan, Eric So).</p></div>
+    </div>
+    <h4>Two errors managers should name</h4>
+    <ul class="checks">
+      <li><div><b>Errors of omission</b>The AI did not flag a problem, so no one looked.</div></li>
+      <li><div><b>Errors of commission</b>The AI was wrong and someone acted on it anyway.</div></li>
+    </ul>
+    <p class="small"><strong>Implication:</strong> controls must change the workflow, forcing independent reasoning before AI contributes or adversarial testing after, rather than relying on people to remember to be sceptical.</p>
+  </div>
+</section>
+
+<!-- SPREAD 6: shadow AI -->
+<section class="spread" aria-label="Shadow AI">
+  <div class="page">
+    <span class="folio l">page 10</span>
+    <span class="kicker" style="margin-top:24px">03 · Shadow AI</span>
+    <h2 style="color:var(--indigo)">You cannot govern what you cannot see</h2>
+    <p>Shadow AI is a rational response to friction. Employees use unsanctioned tools to escape slow enterprise systems, cut manual re-keying and keep up with productivity expectations.</p>
+    <div class="tiles">
+      <div class="tile"><div class="sq"><b>57<sup>%</sup></b></div><h3>Conceal AI use</h3><p>Hidden usage blinds risk teams.</p></div>
+      <div class="tile"><div class="sq"><b>$670<sup>K</sup></b></div><h3>Extra breach cost</h3><p>Average uplift where shadow-AI activity is high, driven by slower detection.</p></div>
+    </div>
+    <h4>Why bans fail</h4>
+    <p class="small">Prohibition drives use underground and blinds security teams. It also creates a legal double bind: unmanaged use risks confidentiality breaches, while refusing tools that materially improve accuracy may, over time, fall below the expected standard of care.</p>
+  </div>
+  <div class="page tint">
+    <span class="folio r">page 11</span>
+    <span class="kicker" style="margin-top:24px">The alternative</span>
+    <h3 style="font-size:22px;color:var(--indigo)">Amnesty first, guardrails second</h3>
+    <ol class="nlist">
+      <li><span class="n">01</span><div><h3>Declare amnesty</h3><p>A no-blame window, typically 30 days, to disclose tools, plug-ins and personal subscriptions. Delivers a true map of data flows.</p></div></li>
+      <li><span class="n">02</span><div><h3>Analyse demand</h3><p>Group disclosures by use case and data sensitivity to expose gaps in the sanctioned toolset.</p></div></li>
+      <li><span class="n">03</span><div><h3>Provide secure alternatives</h3><p>License enterprise-grade tools that meet the real demand and remove the incentive to work around policy.</p></div></li>
+      <li><span class="n">04</span><div><h3>Apply guardrails</h3><p>Identity and access controls, data-loss prevention, endpoint monitoring and clear acceptable-use rules.</p></div></li>
+      <li><span class="n">05</span><div><h3>Rebuild trust</h3><p>Report what was learned and what changed, so transparency is visibly rewarded.</p></div></li>
+    </ol>
+    <p class="quote">Guardrails imposed before the amnesty simply teach people to hide better.</p>
+  </div>
+</section>
+
+<!-- SPREAD 7: psychological safety -->
+<section class="spread" aria-label="Psychological safety">
+  <div class="page color soft">
+    <span class="folio l">page 12</span>
+    <span class="kicker" style="margin-top:24px">04 · Psychological safety</span>
+    <h2>The control layer policy cannot replace</h2>
+    <p class="lead">If people fear looking replaceable or foolish, they will neither disclose AI use nor challenge a confident machine.</p>
+    <p>Amy Edmondson defines psychological safety as a shared belief that a team is safe for interpersonal risk. It is not comfort or lower standards. It is permission, and expectation, to disagree and interrogate ideas.</p>
+    <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+      <div class="ring"><div><b>71%</b><small>fear permanent<br>job losses</small></div></div>
+      <p class="small" style="flex:1;min-width:180px">Identity threat pushes people from learning mode into defensive mode, where silence about AI use and AI errors is the safer personal choice.</p>
+    </div>
+  </div>
+  <div class="page">
+    <span class="folio r">page 13</span>
+    <span class="kicker" style="margin-top:24px">How AI erodes it</span>
+    <ul class="checks">
+      <li><div><b>Identity threat</b>AI automates the analysis many careers were built on.</div></li>
+      <li><div><b>Silence about use</b>Admitting reliance feels like admitting replaceability.</div></li>
+      <li><div><b>Silence about errors</b>Questioning a fluent output risks looking wrong twice.</div></li>
+      <li><div><b>Distance</b>Remote, asynchronous work reduces informal candour.</div></li>
+    </ul>
+    <h4>What managers can do</h4>
+    <div class="blocks">
+      <div class="block"><span class="n">01</span><div><h3>Model fallibility</h3><p>Share specific times AI misled you and how you caught it.</p></div></div>
+      <div class="block"><span class="n">02</span><div><h3>Separate failure types</h3><p>Reward learning from low-risk experiments; hold firm on skipped mandatory reviews.</p></div></div>
+      <div class="block"><span class="n">03</span><div><h3>Ask for the downside</h3><p>"What is the worst outcome if this AI-supported recommendation is wrong?"</p></div></div>
+      <div class="block"><span class="n">04</span><div><h3>Debate live, disclose freely</h3><p>Discuss high-stakes AI output synchronously; make stating AI's contribution routine.</p></div></div>
+    </div>
+    <p class="small">Success is behavioural: people flag AI errors early, disclose use as a matter of course, and challenge outputs a senior colleague endorsed.</p>
+  </div>
+</section>
+
+<!-- SPREAD 8: operating model -->
+<section class="spread" aria-label="The judgment operating model">
+  <div class="page">
+    <span class="folio l">page 14</span>
+    <span class="kicker" style="margin-top:24px">05 · Operating model</span>
+    <h2 style="color:var(--indigo)">Build scepticism into the workflow</h2>
+    <h4>Tier the work by risk</h4>
+    <div class="cards" style="margin-top:14px">
+      <div class="card" style="background:linear-gradient(160deg,#8E7BC9,#5B45A8)"><span class="badge">1</span><span class="tag">Low</span><h3>Drafts and brainstorming</h3><p>Self-check; AI use noted.</p></div>
+      <div class="card" style="background:var(--grad-soft)"><span class="badge">2</span><span class="tag">Moderate</span><h3>Internal decisions and reports</h3><p>Named owner verifies sources and key figures.</p></div>
+      <div class="card" style="background:var(--grad)"><span class="badge">3</span><span class="tag">High</span><h3>Client, financial, legal, safety, strategy</h3><p>Assumption map plus independent red-team review before release.</p></div>
+    </div>
+    <h4>Map assumptions: importance × evidence</h4>
+    <div class="matrix" role="img" aria-label="Assumption map: test critical assumptions with weak evidence first">
+      <div class="yax">Importance →</div>
+      <div class="q hot"><h3>Test first</h3><p>Critical but weakly evidenced: the leap-of-faith assumptions.</p></div>
+      <div class="q"><h3>Verify and monitor</h3><p>Critical and well evidenced: confirm sources, track for change.</p></div>
+      <div class="q"><h3>Park</h3><p>Unproven but low stakes: revisit if importance rises.</p></div>
+      <div class="q"><h3>Accept</h3><p>Low stakes, well evidenced: no further testing.</p></div>
+      <div></div>
+      <div class="xax"><span>Weak evidence</span><span>Strong evidence →</span></div>
+    </div>
+    <p class="small">Score evidence on what supports a claim, not how it reads. Fluent prose and model confidence count as weak evidence.</p>
+  </div>
+  <div class="page tint">
+    <span class="folio r">page 15</span>
+    <span class="kicker" style="margin-top:24px">Red team and adversarial prompts</span>
+    <ul class="checks">
+      <li><div><b>Task-level checks</b>Does the output meet the standard an expert would expect?</div></li>
+      <li><div><b>Component-level checks</b>Are sources real, figures traceable, reasoning unbiased?</div></li>
+      <li><div><b>Adversarial checks</b>Probe for prompt injection and unverified citations.</div></li>
+      <li><div><b>No metric shortcut</b>BLEU or ROUGE can score well on confidently wrong output.</div></li>
+    </ul>
+    <h4>Four challenge personas</h4>
+    <div class="blocks">
+      <div class="block" style="background:#fff"><span class="n">01</span><div><h3>Stress-tester</h3><p>Strongest counter-arguments on financial, ethical and practical grounds. Counters confirmation bias.</p></div></div>
+      <div class="block" style="background:#fff"><span class="n">02</span><div><h3>Pre-mortem analyst</h3><p>It is 12 months later and the plan failed: explain why. Counters optimism.</p></div></div>
+      <div class="block" style="background:#fff"><span class="n">03</span><div><h3>Blind-spot detector</h3><p>Ignore the strengths; list the biases and data gaps. Counters attachment.</p></div></div>
+      <div class="block" style="background:#fff"><span class="n">04</span><div><h3>Brutal editor</h3><p>Flag every unsupported claim and logical gap. Counters fluency bias.</p></div></div>
+    </div>
+    <p class="small"><strong>Caution:</strong> a model critiquing its own output shares its blind spots. Adversarial prompting widens the search; it does not replace verification against primary sources.</p>
+  </div>
+</section>
+
+<!-- SPREAD 9: imperatives + roadmap -->
+<section class="spread" aria-label="Leadership imperatives and roadmap">
+  <div class="page color">
+    <span class="folio l">page 16</span>
+    <span class="kicker" style="margin-top:24px">06 · Leadership imperatives</span>
+    <h2>Three shifts for managers</h2>
+    <ol class="nlist">
+      <li><span class="n">01</span><div><h3>Protect productive friction</h3><p>Require independent first thinking on high-stakes problems. Use AI as a Socratic coach for development. Periodically test whether teams can still do core analysis without it.</p></div></li>
+      <li><span class="n">02</span><div><h3>Redefine AI literacy</h3><p>Teach the biases by name. Anchor decision inputs to traceable data. Make stated uncertainty a standing agenda item. Match tools to risk tier.</p></div></li>
+      <li><span class="n">03</span><div><h3>Reinvest the cognitive surplus</h3><p>Agree where saved hours go: clients, strategy, negotiation, coaching, deeper review. Measure judgment quality, not just throughput.</p></div></li>
+    </ol>
+  </div>
+  <div class="page">
+    <span class="folio r">page 17</span>
+    <span class="kicker" style="margin-top:24px">07 · Roadmap</span>
+    <h3 style="font-size:22px;color:var(--indigo)">Visibility before control, in 180 days</h3>
+    <div>
+      <div class="road">
+        <div class="phase"><span class="when">Days 0–30</span><h3>Illuminate</h3><ul><li>Launch 30-day amnesty</li><li>Map tools, data flows, demand</li><li>Define risk tiers 1–3</li><li>Name an executive sponsor</li></ul></div>
+        <div class="phase"><span class="when">Days 30–90</span><h3>Equip</h3><ul><li>License secure AI tools</li><li>Deploy access and DLP controls</li><li>Train on bias and verification</li><li>Pilot red-team review in 2–3 high-risk workflows</li></ul></div>
+        <div class="phase"><span class="when">Days 90–180</span><h3>Embed</h3><ul><li>Scale controls to tier-3 work</li><li>Psych safety in manager goals</li><li>Set reinvestment targets</li><li>Quarterly KPI review</li></ul></div>
+      </div>
+      <div class="gates">
+        <div class="gate"><i></i><span><b>Gate 1</b><br>Shadow-use map complete, tiers agreed</span></div>
+        <div class="gate"><i></i><span><b>Gate 2</b><br>Pilots catch errors without slowing delivery</span></div>
+        <div class="gate"><i></i><span><b>Day 180</b><br>Scorecard baselined and reviewed</span></div>
+      </div>
+    </div>
+    <h4>KPI scorecard</h4>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Dimension</th><th>Indicator</th><th>Target direction</th></tr></thead>
+        <tbody>
+          <tr><td>Visibility</td><td>Tools disclosed; unsanctioned tools in use</td><td>Disclosure ↑ · shadow ↓</td></tr>
+          <tr><td>Verification</td><td>Tier 2–3 outputs with documented review</td><td>↑ to 100% for tier 3</td></tr>
+          <tr><td>Quality</td><td>AI errors caught before vs. after release</td><td>Ratio ↑</td></tr>
+          <tr><td>Security</td><td>DLP incidents involving AI; time to detect</td><td>↓</td></tr>
+          <tr><td>Safety</td><td>Comfort raising AI errors (team survey)</td><td>↑</td></tr>
+          <tr><td>Capability</td><td>Score on periodic no-AI exercises</td><td>Stable or ↑</td></tr>
+          <tr><td>Value</td><td>Hours saved; share reinvested</td><td>Both ↑</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- SPREAD 10: evidence + sources -->
+<section class="spread" aria-label="Evidence and sources">
+  <div class="page">
+    <span class="folio l">page 18</span>
+    <span class="kicker" style="margin-top:24px">08 · Evidence and caveats</span>
+    <h3 style="font-size:22px;color:var(--indigo)">The direction is well supported; some figures need checking</h3>
+    <p class="small">Statistics are taken from the source essay and have not been re-checked against the primary reports.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Claim</th><th>Strength</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td>58% / 66% / 56% / 57%</td><td><span class="pill ok">Strong</span></td><td>Large 47-country survey; self-reported behaviour</td></tr>
+          <tr><td>Automation and fluency bias</td><td><span class="pill mid">Moderate</span></td><td>Consistent with established literature; cited AI studies are single experiments</td></tr>
+          <tr><td>Trust fell 38% in 3 months</td><td><span class="pill chk">Verify</span></td><td>Confirm figure, population and definition in Deloitte TrustID</td></tr>
+          <tr><td>~90% use personal AI accounts</td><td><span class="pill chk">Verify</span></td><td>Similar figures elsewhere measure share of companies, not employees</td></tr>
+          <tr><td>71% fear job loss</td><td><span class="pill chk">Verify</span></td><td>Likely US adults generally, not workers</td></tr>
+          <tr><td>71% / 87% on content trust</td><td><span class="pill chk">Verify</span></td><td>Attributed to Deloitte in text but cited to KPMG</td></tr>
+          <tr><td>$670K breach uplift</td><td><span class="pill mid">Moderate</span></td><td>Commonly traced to IBM 2025 breach study; confirm primary source</td></tr>
+          <tr><td>Amnesty works</td><td><span class="pill view">Practitioner</span></td><td>Logical and widely recommended; little controlled evidence</td></tr>
+          <tr><td>Non-use as negligence</td><td><span class="pill view">Emerging</span></td><td>Jurisdiction-specific and largely untested</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>Implementation risks</h4>
+    <ul class="checks">
+      <li><div><b>Review fatigue</b>Tier-3 controls on tier-1 work drive people back to shadow tools.</div></li>
+      <li><div><b>Theatre</b>Maps and sign-offs become box-ticking; audit a sample.</div></li>
+      <li><div><b>Amnesty credibility</b>One disciplinary case from a disclosure ends the programme.</div></li>
+      <li><div><b>Measurement</b>Use a basket of indicators, not one metric.</div></li>
+    </ul>
+  </div>
+  <div class="page color soft">
+    <span class="folio r">page 19</span>
+    <span class="kicker" style="margin-top:24px">Sources</span>
+    <ul class="sources">
+      <li><b>Adoption and trust</b><a style="color:#fff" href="https://kpmg.com/xx/en/our-insights/ai-and-technology/trust-attitudes-and-use-of-ai.html">KPMG &amp; University of Melbourne, Trust, attitudes and use of AI 2025</a></li>
+      <li><a style="color:#fff" href="https://d1lzrgdbvkolkd.cloudfront.net/4749_Deloitte_Trust_ID_Workforce_AI_Report_Q3_2025_3aa42f916c.pdf">Deloitte, Workforce Trust with AI, TrustID Q3 2025</a></li>
+      <li><a style="color:#fff" href="https://action.deloitte.com/insight/4211/generating-trust-in-genai-through-training-transparency">Deloitte, Generating trust in GenAI through training</a></li>
+      <li><b>Cognition and bias</b><a style="color:#fff" href="https://publikationen.reutlingen-university.de/files/5929/5929.pdf">Reutlingen University, Mitigating Automation Bias Through Nudges</a></li>
+      <li><a style="color:#fff" href="https://mitsloan.mit.edu/ideas-made-to-matter/ai-gravity-pulling-you-toward-dependency-heres-how-to-push-back">MIT Sloan, 'AI gravity' is pulling you toward dependency</a></li>
+      <li><a style="color:#fff" href="https://www.library.hbs.edu/working-knowledge/dangers-of-deferring-to-ai">HBS Working Knowledge, The Dangers of Deferring to AI</a></li>
+      <li><a style="color:#fff" href="https://market.science/generative-ai-confidence-illusion/">Market Science, The Confidence Illusion</a></li>
+      <li><a style="color:#fff" href="https://thedecisionlab.com/biases/ai-literacy-gap">The Decision Lab, AI Literacy Gap</a></li>
+      <li><a style="color:#fff" href="https://www.apa.org/monitor/2026/07-08/ai-job-skills-thinking">APA Monitor, How AI is reshaping human skills and thinking</a></li>
+      <li><b>Shadow AI</b><a style="color:#fff" href="https://kpmg.com/kpmg-us/content/dam/kpmg/pdf/2025/shadow-ai-already-here-take-control-reduce-risk-unleash-innovation.pdf">KPMG, Shadow AI is already here</a></li>
+      <li><a style="color:#fff" href="https://www.rmoklegal.com/news/shadow-ai-ban-liability-uk-business">RMOK Legal, Why Bans Fail</a></li>
+      <li><a style="color:#fff" href="https://theaihat.com/shadow-ai/">The AI Hat, Shadow AI Governance Launchpad</a></li>
+      <li><b>Psychological safety</b><a style="color:#fff" href="https://www.library.hbs.edu/working-knowledge/four-steps-to-build-the-psychological-safety-that-high-performing-teams-need-today">HBS, Four Steps to Psychological Safety</a></li>
+      <li><a style="color:#fff" href="https://www.businessthink.unsw.edu.au/articles/psychological-safety-amy-edmondson-remote-work-artificial-intelligence">UNSW BusinessThink, Amy Edmondson</a></li>
+      <li><a style="color:#fff" href="https://www.psychologytoday.com/au/blog/pressure-proof/202605/why-psychological-safety-matters-more-in-ai-enabled-teams">Psychology Today, AI-Enabled Teams</a></li>
+      <li><b>Frameworks</b><a style="color:#fff" href="https://www.strategyzer.com/programs/assumptions-mapping-prepare-to-test-your-business-idea-part-1">Strategyzer, Assumptions mapping</a></li>
+      <li><a style="color:#fff" href="https://www.cyberhaven.com/blog/red-team-ai-workflows">Cyberhaven, Red team exercises for AI workflows</a></li>
+      <li><a style="color:#fff" href="https://watershed.com/blog/a-practical-framework-for-llm-system-evaluations-for-multi-step-processes">Watershed, LLM system evaluations</a></li>
+      <li><a style="color:#fff" href="https://argumentroupe.com/blog/devil-advocate-ai/">ArgumenTroupe, Devil's Advocate AI</a></li>
+    </ul>
+    <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
+      <p class="quote" style="max-width:30ch">Machine speed where errors are cheap. Human scrutiny where they are not.</p>
+      <div class="ring"><div><b>180</b><small>day<br>programme</small></div></div>
+    </div>
+  </div>
+</section>
+
+</main>
